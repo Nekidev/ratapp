@@ -573,7 +573,7 @@
 //! # Advanced Usage
 //!
 //! This part of the documentation covers more advanced usage of `ratapp`, including how to manage
-//! global application state across screens using the [`ScreenState`] trait, how to dynamically
+//! global application state across screens using the [`ScreenWithState`] trait, how to dynamically
 //! trigger re-renders, and more. It's not a step-by-step tutorial like the Quick Start, but it's
 //! still meant to be easy to follow.
 //!
