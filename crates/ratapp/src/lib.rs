@@ -690,6 +690,13 @@
 //! The second way to rerender on demand is by calling [`Navigator::rerender()`]. This was the
 //! initial way of triggering rerenders, but it is now deprecated in favor of the
 //! [`Screen::rerender()`] and [`ScreenWithState::rerender()`] methods.
+//! 
+//! ## Screen Hooks
+//! 
+//! Screens have two hooks that get called when navigating: [`Screen::on_enter()`] and
+//! [`Screen::on_exit()`]. As their names say, they get called when entering and exiting a screen,
+//! respectively. They are both asynchronous methods, so you can perform async operations inside
+//! them.
 //!
 //! # Contributing
 //!
