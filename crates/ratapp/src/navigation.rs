@@ -14,7 +14,7 @@ use tokio::sync::{Mutex, watch};
 /// It has 3 main functions:
 /// - [`goto(ScreenID)`](Navigator::goto): Switch to another screen.
 /// - [`exit()`](Navigator::exit): Exit the application.
-/// - [`rerender()`](Navigator::rerender): Request a rerender of the current screen.
+/// - [`rerender()`](Navigator::rerender) (deprecated): Request a rerender of the current screen.
 /// 
 /// They're all asynchronous functions, so you need to `.await` them.
 /// 
