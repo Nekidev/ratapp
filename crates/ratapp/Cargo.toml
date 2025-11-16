@@ -5,7 +5,7 @@ edition = "2024"
 description = "A tiny framework to build multi-screen async applications with ratatui."
 authors = ["Nyeki"]
 license = "MIT"
-readme = "README.md"
+readme = "../../README.md"
 repository = "https://github.com/Nekidev/ratapp"
 
 [dependencies]
