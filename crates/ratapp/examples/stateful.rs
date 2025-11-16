@@ -1,4 +1,7 @@
-use ratapp::{App, Navigator, Screen, Screens};
+//! The same app from examples/tutorial.rs, but using the global app state for the counter instead
+//! of screen state.
+
+use ratapp::{App, Navigator, Screen, ScreenWithState, Screens};
 use ratatui::{
     Frame,
     crossterm::event::{Event, KeyCode},
@@ -9,9 +12,13 @@ use ratatui::{
 
 #[tokio::main]
 async fn main() {
-    let mut app = App::<AppScreens, u32>::with_state(5u32);
+    let mut app = App::<AppScreens, State>::with_state(State { counter: 5 });
 
     app.run().await.unwrap();
+}
+
+struct State {
+    counter: u32,
 }
 
 #[derive(Screens)]
@@ -22,23 +29,21 @@ enum AppScreens {
 
 impl Default for AppScreens {
     fn default() -> Self {
-        AppScreens::Home(HomeScreen::default())
+        AppScreens::Home(HomeScreen)
     }
 }
 
 #[derive(Default)]
-struct HomeScreen {
-    counter: u32,
-}
+struct HomeScreen;
 
-impl Screen<ScreenID> for HomeScreen {
-    fn draw(&mut self, frame: &mut Frame) {
+impl ScreenWithState<ScreenID, State> for HomeScreen {
+    fn draw(&mut self, frame: &mut Frame, state: &mut State) {
         let text = Paragraph::new(vec![
             Line::from("Hello ratapp!"),
             Line::from(""),
             Line::from("This is the home screen. Welcome!"),
             Line::from(""),
-            Line::from(format!("Counter: {}", self.counter)),
+            Line::from(format!("Counter: {}", state.counter)),
             Line::from(""),
             Line::from("Use the arrows up and down to update the counter."),
             Line::from("Press enter to go to the list screen."),
@@ -48,14 +53,14 @@ impl Screen<ScreenID> for HomeScreen {
         frame.render_widget(text, frame.area());
     }
 
-    async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
+    async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>, state: &mut State) {
         if let Event::Key(key_event) = event {
             match key_event.code {
                 KeyCode::Up => {
-                    self.counter = self.counter.saturating_add(1);
+                    state.counter = state.counter.saturating_add(1);
                 }
                 KeyCode::Down => {
-                    self.counter = self.counter.saturating_sub(1);
+                    state.counter = state.counter.saturating_sub(1);
                 }
                 KeyCode::Enter => {
                     navigator.goto(ScreenID::List).await;

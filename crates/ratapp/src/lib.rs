@@ -374,6 +374,7 @@
 //!                 KeyCode::Char('q') => {                    // Add this!
 //!                     navigator.exit().await;                // Add this!
 //!                 }                                          // Add this!
+//!                 _ => {}
 //!             },
 //!             _ => {}
 //!         }
@@ -396,12 +397,12 @@
 //!
 //! ```
 //! # use ratapp::{Navigator, Screen};
-//! # use ratatui::{Frame, crossterm::event::Event};
+//! # use ratatui::{Frame, crossterm::event::{Event, KeyCode}};
 //! #
 //! # #[derive(Default)]
 //! # struct ListScreen;
 //! #
-//! # enum ScreenID {}
+//! # enum ScreenID { Home }
 //! #
 //! impl Screen<ScreenID> for ListScreen {
 //!     fn draw(&mut self, frame: &mut Frame) {
@@ -444,10 +445,16 @@
 //!
 //! ```
 //! # use ratapp::{Navigator, Screen};
-//! # use ratatui::{Frame, crossterm::event::Event};
+//! # use ratatui::{
+//! #     Frame,
+//! #     crossterm::event::Event,
+//! #     widgets::{List, ListState, ListItem, Paragraph},
+//! #     text::Line,
+//! #     layout::{Layout, Constraint}
+//! # };
 //! #
 //! # #[derive(Default)]
-//! # struct ListScreen;
+//! # struct ListScreen { state: ListState }
 //! #
 //! # enum ScreenID {}
 //! #
@@ -491,12 +498,12 @@
 //!
 //! ```
 //! # use ratapp::{Navigator, Screen};
-//! # use ratatui::{Frame, crossterm::event::Event};
+//! # use ratatui::{Frame, crossterm::event::{Event, KeyCode}, widgets::ListState};
 //! #
 //! # #[derive(Default)]
-//! # struct ListScreen;
+//! # struct ListScreen { state: ListState }
 //! #
-//! # enum ScreenID {}
+//! # enum ScreenID { Home }
 //! #
 //! impl Screen<ScreenID> for ListScreen {
 //! #   fn draw(&mut self, frame: &mut Frame) {}
@@ -548,7 +555,7 @@
 //! impl Default for ListScreen {
 //!     fn default() -> Self {
 //!         ListScreen {
-//!             state: ListState::new().with_selected(Some(0)),
+//!             state: ListState::default().with_selected(Some(0)),
 //!         }
 //!     }
 //! }
@@ -563,6 +570,123 @@
 //! > The final code of this tutorial can be found under `examples/tutorial.rs` in our [GitHub
 //! > repository](https://github.com/Nekidev/ratapp). Check it out if you encounter any issues!
 //!
+//! # Advanced Usage
+//!
+//! This part of the documentation covers more advanced usage of `ratapp`, including how to manage
+//! global application state across screens using the [`ScreenState`] trait, how to dynamically
+//! trigger re-renders, and more. It's not a step-by-step tutorial like the Quick Start, but it's
+//! still meant to be easy to follow.
+//!
+//! ## Global Application State
+//!
+//! Sometimes, you may want to share some state across multiple screens in your application. For
+//! example, you might have user preferences, a theme setting, or any other data that should be
+//! accessible from different parts of your app.
+//!
+//! To achieve this, `ratapp`'s [`App`] struct can be initialized with [`App::with_state()`] to
+//! hold a global application state. This state can then be accessed and modified by screens that
+//! implement the [`ScreenWithState`] trait (instead of the [`Screen`] trait).
+//!
+//! For example:
+//!
+//! ```
+//! use ratapp::{App, Navigator, ScreenWithState, Screens};
+//! use ratatui::{Frame, crossterm::event::Event};
+//!
+//! enum Theme {
+//!     Light,
+//!     Dark
+//! }
+//!
+//! struct State {
+//!     theme: Theme
+//! }
+//!
+//! #[derive(Screens)]
+//! pub enum MyScreens {
+//!    Home(HomeScreen),
+//! }
+//!
+//! impl Default for MyScreens {
+//!     fn default() -> Self {
+//!         MyScreens::Home(HomeScreen::default())
+//!     }
+//! }
+//!
+//! #[derive(Default)]
+//! struct HomeScreen;
+//!
+//! impl ScreenWithState<ScreenID, State> for HomeScreen {
+//!     fn draw(&mut self, frame: &mut Frame, state: &mut State) {
+//!         // Use state.theme to determine colors, etc.
+//!     }
+//!
+//!     async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>, state: &mut State) {
+//!         // Modify state.theme based on user input, etc.
+//!     }
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let mut app = App::<MyScreens, State>::with_state(State { theme: Theme::Light });
+//! }
+//! ```
+//! 
+//! Note that [`Screen`] and [`ScreenWithState`] can both be combined in a single app. Use the one
+//! that works best for each screen.
+//! 
+//! ## On-demand Re-rendering
+//! 
+//! `ratapp` provides two ways to trigger re-renders dynamically at the moment. The first one, and
+//! the one you should prefer, is via the [`Screen::rerender()`] method. This method will be
+//! awaited and the screen will be re-rendered once the future is completed. It's called in loop,
+//! so a function that never returns (the default implementation) will never trigger a re-render on
+//! its own, while a function that returns after waiting one second will rerender automatically
+//! every second.
+//! 
+//! For example, if you want to do a tick-based animation, like a spinner, you could do something
+//! like:
+//! 
+//! ```
+//! use ratapp::{Screen, Navigator};
+//! use ratatui::{Frame, crossterm::event::Event, text::Text};
+//! 
+//! fn get_tick(tick: usize) -> char {
+//!     match tick % 4 {
+//!         0 => '-',
+//!         1 => '\\',
+//!         2 => '|',
+//!         3 => '/',
+//!         _ => unreachable!(),
+//!     }
+//! }
+//! 
+//! #[derive(Default)]
+//! struct TickBasedScreen {
+//!     tick: usize,
+//! }
+//! 
+//! # enum ScreenID {}
+//! #
+//! impl Screen<ScreenID> for TickBasedScreen {
+//!     fn draw(&mut self, frame: &mut Frame) {
+//!         let text = Text::from(get_tick(self.tick).to_string());
+//! 
+//!         frame.render_widget(text, frame.area());
+//!     }
+//! #
+//! #   async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {}
+//!
+//!     async fn rerender(&mut self) {
+//!         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+//!         self.tick += 1;
+//!     }
+//! }
+//! ```
+//! 
+//! That screen would update itself every 200 milliseconds and add 1 to the tick state, effectively
+//! animating the spinner.
+//!
 //! # Contributing
 //!
 //! `ratapp` is pretty new, so some things may be undocumented or missing. If you find any of that,
@@ -575,6 +699,6 @@ mod screen;
 
 pub use app::App;
 pub use navigation::Navigator;
-pub use screen::{Screen, ScreenState};
+pub use screen::{Screen, ScreenState, ScreenWithState};
 
 pub use ratapp_macros::Screens;

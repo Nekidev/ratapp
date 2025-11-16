@@ -94,15 +94,21 @@ fn generate_screen_state_impl(
     enum_name: &Ident,
     variants: &[(&Ident, &Type)],
 ) -> proc_macro2::TokenStream {
+    let where_bounds = variants.iter().map(|(_, ty)| {
+        quote! {
+            #ty : ratapp::ScreenWithState<ScreenID, S>
+        }
+    });
+
     let match_draw = variants.iter().map(|(name, _)| {
         quote! {
-            #enum_name::#name(screen) => screen.draw(frame),
+            #enum_name::#name(screen) => ScreenWithState::draw(screen, frame, state),
         }
     });
 
     let match_on_event = variants.iter().map(|(name, _)| {
         quote! {
-            #enum_name::#name(screen) => screen.on_event(event, navigator).await,
+            #enum_name::#name(screen) => ScreenWithState::on_event(screen, event, navigator, state).await,
         }
     });
 
@@ -114,36 +120,39 @@ fn generate_screen_state_impl(
 
     let match_on_enter = variants.iter().map(|(name, _)| {
         quote! {
-            #enum_name::#name(screen) => screen.on_enter().await,
+            #enum_name::#name(screen) => ScreenWithState::on_enter(screen, state).await,
         }
     });
 
     let match_on_exit = variants.iter().map(|(name, _)| {
         quote! {
-            #enum_name::#name(screen) => screen.on_exit().await,
+            #enum_name::#name(screen) => ScreenWithState::on_exit(screen, state).await,
         }
     });
 
     let match_rerender = variants.iter().map(|(name, _)| {
         quote! {
-            #enum_name::#name(screen) => screen.rerender().await,
+            #enum_name::#name(screen) => ScreenWithState::rerender(screen, state).await,
         }
     });
 
     let screen_state_impl = quote! {
-        impl ratapp::ScreenState for #enum_name {
+        impl<S> ratapp::ScreenState<S> for #enum_name
+        where
+            #( #where_bounds, )*
+        {
             type ID = ScreenID;
 
-            fn draw(&mut self, frame: &mut ratatui::Frame) {
-                use ratapp::Screen;
+            fn draw(&mut self, frame: &mut ratatui::Frame, state: &mut S) {
+                use ratapp::ScreenWithState;
 
                 match self {
                     #(#match_draw)*
                 }
             }
 
-            async fn on_event(&mut self, event: ratatui::crossterm::event::Event, navigator: &ratapp::Navigator<Self::ID>) {
-                use ratapp::Screen;
+            async fn on_event(&mut self, event: ratatui::crossterm::event::Event, navigator: &ratapp::Navigator<Self::ID>, state: &mut S) {
+                use ratapp::ScreenWithState;
 
                 match self {
                     #(#match_on_event)*
@@ -151,31 +160,31 @@ fn generate_screen_state_impl(
             }
 
             fn navigate(&mut self, id: &Self::ID) {
-                use ratapp::Screen;
+                use ratapp::ScreenWithState;
 
                 match *id {
                     #(#match_navigate)*
                 }
             }
 
-            async fn on_enter(&mut self) {
-                use ratapp::Screen;
+            async fn on_enter(&mut self, state: &mut S) {
+                use ratapp::ScreenWithState;
 
                 match self {
                     #(#match_on_enter)*
                 }
             }
 
-            async fn on_exit(&mut self) {
-                use ratapp::Screen;
+            async fn on_exit(&mut self, state: &mut S) {
+                use ratapp::ScreenWithState;
 
                 match self {
                     #(#match_on_exit)*
                 }
             }
 
-            async fn rerender(&mut self) {
-                use ratapp::Screen;
+            async fn rerender(&mut self, state: &mut S) {
+                use ratapp::ScreenWithState;
 
                 match self {
                     #(#match_rerender)*
