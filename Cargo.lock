@@ -308,8 +308,18 @@ dependencies = [
 name = "ratapp"
 version = "0.1.0"
 dependencies = [
+ "ratapp-macros",
  "ratatui",
  "tokio",
+]
+
+[[package]]
+name = "ratapp-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

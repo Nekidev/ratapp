@@ -14,7 +14,7 @@ pub(crate) struct NavigatorInner<S> {
 }
 
 impl<S> Navigator<S> {
-    pub fn new(rerenders: watch::Sender<()>) -> Self {
+    pub(crate) fn new(rerenders: watch::Sender<()>) -> Self {
         Navigator {
             inner: Arc::new(Mutex::new(NavigatorInner {
                 next_screen: None,

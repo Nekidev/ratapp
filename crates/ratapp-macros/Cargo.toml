@@ -1,0 +1,12 @@
+[package]
+name = "ratapp-macros"
+version = { workspace = true }
+edition = "2024"
+
+[dependencies]
+proc-macro2 = "1.0.103"
+quote = "1.0.42"
+syn = "2.0.110"
+
+[lib]
+proc-macro = true

@@ -1,17 +1,6 @@
-[package]
-name = "ratapp"
-version = "0.1.0"
-edition = "2024"
-description = "A tiny framework to build multi-screen async applications with ratatui."
-authors = ["Nyeki"]
-license = "MIT"
-readme = "README.md"
-repository = "https://github.com/Nekidev/ratapp"
+[workspace]
+members = ["crates/ratapp", "crates/ratapp-macros"]
+resolver = "3"
 
-[dependencies]
-ratatui = "0.29.0"
-tokio = { version = "1.48.0", default-features = false, features = [
-    "macros",
-    "rt",
-    "sync",
-] }
+[workspace.package]
+version = "0.1.0"
