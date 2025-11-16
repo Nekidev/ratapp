@@ -3,6 +3,27 @@ use proc_macro2::Ident;
 use quote::quote;
 use syn::{Data, DataEnum, DeriveInput, Type, parse_macro_input};
 
+/// Derive macro to automatically implement the [`ScreenState`](ratapp::ScreenState) trait for an
+/// enum representing the application's screens.
+/// 
+/// Each variant of the enum should hold a single unnamed field of the screen type. For example:
+/// 
+/// ```ignore
+/// #[derive(ratapp::Screens)]
+/// enum AppScreens {
+///     Home(HomeScreen),
+///     Settings(SettingsScreen),
+/// }
+/// ```
+/// 
+/// This macro will generate:
+/// 
+/// - A `ScreenID` enum with variants corresponding to each screen.
+/// - An implementation of the `ScreenState` trait for the enum, forwarding method calls to the
+///   active screen.
+/// 
+/// To learn how to implement screen state without this macro, check out the
+/// [`ScreenState`](ratapp::ScreenState) trait documentation.
 #[proc_macro_derive(Screens)]
 pub fn screen(input: proc_macro::TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);

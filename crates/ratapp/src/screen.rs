@@ -45,6 +45,19 @@ use crate::navigation::Navigator;
 ///     };
 /// }
 /// ```
+/// 
+/// Once that's done, you'll also need to create a `ScreenID` enum to identify the screens, like
+/// so:
+/// 
+/// ```rust
+/// enum ScreenID {
+///     First,
+///     Second,
+/// }
+/// ```
+/// 
+/// And that's it! You can now use your `ScreenState` implementation with the [`App`](crate::App)
+/// struct to run your application.
 pub trait ScreenState: Default {
     type ID: Copy;
 
