@@ -2,6 +2,11 @@
 
 A tiny framework to build multi-screen async applications with ratatui.
 
+## Documentation
+
+For tutorials, examples, and docs, check out the [docs.rs/ratapp
+documentation](https://docs.rs/ratapp).
+
 ## Example
 
 This is the finished example of the tutorial at [docs.rs/ratapp](https://docs.rs/ratapp). The
