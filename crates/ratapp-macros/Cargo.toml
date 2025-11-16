@@ -1,7 +1,11 @@
 [package]
 name = "ratapp-macros"
+description = "Macros for ratapp."
 version = { workspace = true }
 edition = "2024"
+authors = ["Nyeki"]
+license = "MIT"
+repository = "https://github.com/Nekidev/ratapp"
 
 [dependencies]
 proc-macro2 = "1.0.103"
