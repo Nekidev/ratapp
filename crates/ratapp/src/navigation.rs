@@ -56,7 +56,7 @@ impl<S> Navigator<S> {
     }
 
     /// Request a rerender of the current screen.
-    #[deprecated = "Use Screen::rerender() and ScreenWithState::rerender() instead."]
+    #[deprecated(since = "0.4.0", note = "Use Screen::rerender() and ScreenWithState::rerender() instead.")]
     pub async fn rerender(&self) {
         let inner = self.inner.lock().await;
         let _ = inner.rerenders.send(());
