@@ -110,7 +110,7 @@ fn generate_screen_state_impl(
     });
 
     let screen_state_impl = quote! {
-        impl ratapp::screen::ScreenState for #enum_name {
+        impl ratapp::ScreenState for #enum_name {
             type ID = ScreenID;
 
             fn draw(&mut self, frame: &mut ratatui::Frame) {

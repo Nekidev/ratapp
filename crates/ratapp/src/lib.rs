@@ -37,7 +37,7 @@
 //! ```
 //!
 //! ## Project Structure
-//! 
+//!
 //! Great! Now, let's create a simple screen. To keep our screens each in their own module, let's
 //! create a `screens` folder in the `src` directory, and inside it, create a file named `mod.rs`
 //! and one named `home.rs`.
@@ -54,7 +54,7 @@
 //! `screens/mod.rs` file, which will hold all our screens as variants.
 //!
 //! ## The [`Screens`] Derive
-//! 
+//!
 //! The `AppScreens` enum will hold all our screens as variants. It derives from [`Screens`] which
 //! will write all the boilerplate code needed to make things work under the hood.
 //!
@@ -78,7 +78,7 @@
 //! Note that we haven't implemented the `HomeScreen` struct yet; we'll do that next. The
 //! [`Default`] implementation is required by `ratapp` to know which screen to display first when
 //! the application starts.
-//! 
+//!
 //! ## A Barebones [`Screen`]
 //!
 //! Now, let's implement our `HomeScreen` in the `screens/home.rs` file. We'll make it simple for
@@ -106,7 +106,7 @@
 //!     }
 //! }
 //! ```
-//! 
+//!
 //! ## `ScreenID`
 //!
 //! Perfect! Now we have our first screen set up. There's something off though; Did you notice we
@@ -128,7 +128,7 @@
 //!
 //! If you wanted to write it the explicit way, you can always swap your `ScreenID` mentions with
 //! `<AppScreen as Screen>::ID`, but that would be quite verbose. It's up to you!
-//! 
+//!
 //! ## A Simple Screen
 //!
 //! Now yes, let's draw something. Our screen right now is empty, so let's add some content to it.
@@ -166,7 +166,7 @@
 //! ```
 //!
 //! ## Terminal Events
-//! 
+//!
 //! Amazing! Now our screen will display a simple message. Next, let's handle some terminal events
 //! so we can interact with our application. We'll update the `on_event` method to listen for key
 //! presses.
@@ -207,7 +207,7 @@
 //! updating its numbers when you press the arrow keys.
 //!
 //! ## Running an [`App`]
-//! 
+//!
 //! Finally, let's put everything together in our `main.rs`. We haven't seen it live yet, after all.
 //!
 //! Going back to our `main.rs`, let's get our application running. We'll create an instance of the
@@ -236,7 +236,7 @@
 //! [`ratatui`] couldn't do on its own.
 //!
 //! ## A Second Screen
-//! 
+//!
 //! Let's write a second screen.
 //!
 //! The first screen is quite simple, just a counter and some text. We want to navigate and to use
@@ -301,7 +301,7 @@
 //! Perfect. This screen doesn't do anything yet, but there's no point in adding any cool features
 //! to a screen you can't access, so let's add some code to navigate to it. Back to our
 //! `HomeScreen` at `src/screens/home.rs`, let's give a cheerful welcome to the [`Navigator`]!
-//! 
+//!
 //! ## The [`Navigator`]
 //!
 //! As you may have guessed, [`Navigator`] lets you navigate between screens. Its API is quite
@@ -325,7 +325,7 @@
 //!
 //! The third method is [`Navigator::exit()`], which exits the application. Calling it will clean
 //! up everything and exit the application.
-//! 
+//!
 //! ## Going to Another Screen
 //!
 //! Now that we know how to use the [`Navigator`], let's go back to our project and make use of it!
@@ -386,7 +386,7 @@
 //! Enter the screen will go blank. That's exactly what is supposed to happen.
 //!
 //! ## More State
-//! 
+//!
 //! Now, let's add our beautiful [`ratatui::widgets::ListState`]! This will allow us to keep track
 //! of the currently-selected item and update our UI accordingly in real time.
 //!
@@ -528,23 +528,23 @@
 //!     }
 //! }
 //! ```
-//! 
+//!
 //! `cargo run` and... It works! You'll notice, though, that the list's selected item indicator
 //! doesn't appear until after you press either arrow, and that snap doesn't look too nice. Let's
 //! fix that.
-//! 
+//!
 //! ## Final Polish
-//! 
+//!
 //! Instead of deriving [`Default`], we'll implement [`Default`] on the `ListScreen` type
 //! ourselves.
-//! 
+//!
 //! ```
 //! use ratatui::widgets::ListState;
-//! 
+//!
 //! struct ListScreen {
 //!     state: ListState,
 //! }
-//! 
+//!
 //! impl Default for ListScreen {
 //!     fn default() -> Self {
 //!         ListScreen {
@@ -553,28 +553,28 @@
 //!     }
 //! }
 //! ```
-//! 
+//!
 //! That should be it. `cargo run` it again and you'll see now the first item is selected by
 //! default. No more snaps.
-//! 
+//!
 //! Congratulations! You finished the Quick Start tutorial, now you have a little app you can work
 //! on to make it cool and yours or just jump straight into what you had in mind. Good luck!
-//! 
+//!
 //! > The final code of this tutorial can be found under `examples/tutorial.rs` in our [GitHub
 //! > repository](https://github.com/Nekidev/ratapp). Check it out if you encounter any issues!
-//! 
+//!
 //! # Contributing
-//! 
+//!
 //! `ratapp` is pretty new, so some things may be undocumented or missing. If you find any of that,
 //! feel free to open an issue or PR in our [GitHub repository](https://github.com/Nekidev/ratapp).
 //! All contributions are welcome!
 
-pub mod app;
-pub mod navigator;
-pub mod screen;
+mod app;
+mod navigation;
+mod screen;
 
 pub use app::App;
-pub use navigator::Navigator;
-pub use screen::Screen;
+pub use navigation::Navigator;
+pub use screen::{Screen, ScreenState};
 
 pub use ratapp_macros::Screens;

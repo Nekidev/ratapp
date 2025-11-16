@@ -1,8 +1,26 @@
+//! The main application loop and event handling.
+
 use ratatui::crossterm::event::{self, Event};
 use tokio::sync::{mpsc, watch};
 
-use crate::{navigator::Navigator, screen::ScreenState};
+use crate::{navigation::Navigator, screen::ScreenState};
 
+/// The main application struct that runs the event loop and manages screens.
+///
+/// To create an instance of `App`, use the [`App::new()`] method with your
+/// [`Screens`](crate::Screens)-derived type.
+///
+/// ```
+/// let mut app = App::<MyScreens>::new();
+/// ```
+///
+/// Then, to run the application, call the asynchronous [`App::run()`] method:
+///
+/// ```
+/// let mut app = App::<MyScreens>::new();
+///
+/// app.run().await?;
+/// ```
 pub struct App<S>
 where
     S: ScreenState,
@@ -16,6 +34,10 @@ impl<S> App<S>
 where
     S: ScreenState,
 {
+    /// Creates a new `App` instance with the default screen.
+    /// 
+    /// Returns:
+    /// [`App`] - A new application instance.
     pub fn new() -> Self {
         let (events_tx, events_rx) = mpsc::unbounded_channel();
 
@@ -38,6 +60,10 @@ where
         }
     }
 
+    /// Runs the main application loop, handling events and screen rendering.
+    /// 
+    /// Returns:
+    /// `std::io::Result<()>` - Result of the application run.
     pub async fn run(&mut self) -> std::io::Result<()> {
         let mut terminal = ratatui::init();
 
