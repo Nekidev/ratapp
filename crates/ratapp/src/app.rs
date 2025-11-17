@@ -117,9 +117,12 @@ where
     pub async fn run(&mut self) -> std::io::Result<()> {
         let mut terminal = ratatui::init();
 
+        // TODO: Implement navigation history with a stack, (watch?) channels, and
+        // `navigation::Action`. A `History` struct abstraction may be useful here.
+
         loop {
             terminal
-                .draw(|frame| self.screen.draw(frame, &mut self.state))
+                .draw(|frame| self.screen.draw(frame, &self.state))
                 .inspect_err(|_| {
                     ratatui::restore();
                 })?;

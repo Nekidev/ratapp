@@ -37,7 +37,7 @@ impl Default for AppScreens {
 struct HomeScreen;
 
 impl ScreenWithState<ScreenID, State> for HomeScreen {
-    fn draw(&mut self, frame: &mut Frame, state: &mut State) {
+    fn draw(&mut self, frame: &mut Frame, state: &State) {
         let text = Paragraph::new(vec![
             Line::from("Hello ratapp!"),
             Line::from(""),

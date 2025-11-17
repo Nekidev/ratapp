@@ -617,7 +617,7 @@
 //! struct HomeScreen;
 //!
 //! impl ScreenWithState<ScreenID, State> for HomeScreen {
-//!     fn draw(&mut self, frame: &mut Frame, state: &mut State) {
+//!     fn draw(&mut self, frame: &mut Frame, state: &State) {
 //!         // Use state.theme to determine colors, etc.
 //!     }
 //!
@@ -635,13 +635,13 @@
 //! Note that [`Screen`] and [`ScreenWithState`] can both be combined in a single app. Use the one
 //! that works best for each screen.
 //! 
-//! ## On-demand Rerendering
+//! ## On-demand Re-rendering
 //! 
-//! `ratapp` provides two ways to trigger rerenders dynamically at the moment. The first one, and
+//! `ratapp` provides two ways to trigger re-renders dynamically at the moment. The first one, and
 //! the one you should prefer, is via the [`Screen::rerender()`] method. This method will be
 //! awaited and the screen will be re-rendered once the future is completed. It's called in loop,
-//! so a function that never returns (the default implementation) will never trigger a rerender on
-//! its own, while a function that returns after waiting one second will rerender automatically
+//! so a function that never returns (the default implementation) will never trigger a re-render on
+//! its own, while a function that returns after waiting one second will re-render automatically
 //! every second.
 //! 
 //! For example, if you want to do a tick-based animation, like a spinner, you could do something
@@ -687,8 +687,8 @@
 //! That screen would update itself every 200 milliseconds and add 1 to the tick state, effectively
 //! animating the spinner.
 //! 
-//! The second way to rerender on demand is by calling [`Navigator::rerender()`]. This was the
-//! initial way of triggering rerenders, but it is now deprecated in favor of the
+//! The second way to re-render on demand is by calling [`Navigator::rerender()`]. This was the
+//! initial way of triggering re-renders, but it is now deprecated in favor of the
 //! [`Screen::rerender()`] and [`ScreenWithState::rerender()`] methods.
 //! 
 //! ## Screen Hooks

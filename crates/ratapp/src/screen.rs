@@ -61,7 +61,7 @@ use crate::navigation::Navigator;
 pub trait ScreenState<S = ()>: Default {
     type ID: Copy;
 
-    fn draw(&mut self, frame: &mut Frame, state: &mut S);
+    fn draw(&mut self, frame: &mut Frame, state: &S);
     async fn on_event(&mut self, event: Event, navigator: &Navigator<Self::ID>, state: &mut S);
     async fn on_enter(&mut self, state: &mut S);
     async fn on_exit(&mut self, state: &mut S);
@@ -144,7 +144,7 @@ pub trait ScreenWithState<ID, State> {
     /// Arguments:
     /// * `frame` - The frame to draw on.
     /// * `state` - The state of the application.
-    fn draw(&mut self, frame: &mut Frame, state: &mut State);
+    fn draw(&mut self, frame: &mut Frame, state: &State);
 
     /// Handles a terminal event.
     ///
@@ -203,7 +203,7 @@ impl<ID, T, S> ScreenWithState<ID, T> for S
 where
     S: Screen<ID>,
 {
-    fn draw(&mut self, frame: &mut Frame, _state: &mut T) {
+    fn draw(&mut self, frame: &mut Frame, _state: &T) {
         self.draw(frame);
     }
 

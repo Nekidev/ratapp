@@ -143,7 +143,7 @@ fn generate_screen_state_impl(
         {
             type ID = ScreenID;
 
-            fn draw(&mut self, frame: &mut ratatui::Frame, state: &mut S) {
+            fn draw(&mut self, frame: &mut ratatui::Frame, state: &S) {
                 use ratapp::ScreenWithState;
 
                 match self {
