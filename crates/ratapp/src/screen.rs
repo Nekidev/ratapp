@@ -56,11 +56,11 @@ pub trait ScreenState<S = ()>: Default {
 
     fn new(id: Self::ID) -> Self;
     fn draw(&mut self, frame: &mut Frame, state: &S);
-    async fn on_event(&mut self, event: Event, navigator: &Navigator<Self::ID>, state: &mut S);
-    async fn on_enter(&mut self, state: &mut S);
-    async fn on_exit(&mut self, state: &mut S);
-    async fn on_pause(&mut self, state: &mut S);
-    async fn on_resume(&mut self, state: &mut S);
+    async fn on_event(&mut self, event: Event, navigator: Navigator<Self::ID>, state: &mut S);
+    async fn on_enter(&mut self, navigator: Navigator<Self::ID>, state: &mut S);
+    async fn on_exit(&mut self, navigator: Navigator<Self::ID>, state: &mut S);
+    async fn on_pause(&mut self, navigator: Navigator<Self::ID>, state: &mut S);
+    async fn on_resume(&mut self, navigator: Navigator<Self::ID>, state: &mut S);
 }
 
 /// A screen in the application.
@@ -94,32 +94,44 @@ pub trait Screen<ID>: Default {
     /// Arguments:
     /// * `event` - The terminal event to handle.
     /// * `navigator` - The navigator to navigate between screens or request rerenders.
-    async fn on_event(&mut self, event: Event, navigator: &Navigator<ID>);
+    async fn on_event(&mut self, event: Event, navigator: Navigator<ID>);
 
     /// Called when the screen is entered.
     ///
     /// This method is called when the screen is first displayed.
     ///
     /// It can be used to initialize the screen state or perform any setup tasks.
-    async fn on_enter(&mut self) {}
+    ///
+    /// Arguments:
+    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    async fn on_enter(&mut self, navigator: Navigator<ID>) {}
 
     /// Called when the screen is exited.
     ///
     /// This method is called when the screen is about to be replaced by another screen.
     ///
     /// It can be used to clean up the screen state or perform any teardown tasks.
-    async fn on_exit(&mut self) {}
+    ///
+    /// Arguments:
+    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    async fn on_exit(&mut self, navigator: Navigator<ID>) {}
 
     /// Called when the screen is paused (sent to the background because of [`Navigator::push()`]).
     ///
     /// This method can be used to pause any ongoing tasks or animations.
-    async fn on_pause(&mut self) {}
+    ///
+    /// Arguments:
+    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    async fn on_pause(&mut self, navigator: Navigator<ID>) {}
 
     /// Called when the screen is resumed (brought back to the foreground by [`Navigator::back()`]
     /// or similar).
     ///
     /// This method can be used to resume any paused tasks or animations.
-    async fn on_resume(&mut self) {}
+    ///
+    /// Arguments:
+    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    async fn on_resume(&mut self, navigator: Navigator<ID>) {}
 }
 
 /// A screen in the application with access to global application state.
@@ -143,7 +155,7 @@ pub trait ScreenWithState<ID, State> {
     /// * `event` - The terminal event to handle.
     /// * `navigator` - The navigator to navigate between screens or request rerenders.
     /// * `state` - The state of the application.
-    async fn on_event(&mut self, event: Event, navigator: &Navigator<ID>, state: &mut State);
+    async fn on_event(&mut self, event: Event, navigator: Navigator<ID>, state: &mut State);
 
     /// Called when the screen is entered.
     ///
@@ -153,7 +165,8 @@ pub trait ScreenWithState<ID, State> {
     ///
     /// Arguments:
     /// * `state` - The state of the application.
-    async fn on_enter(&mut self, state: &mut State) {}
+    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    async fn on_enter(&mut self, navigator: Navigator<ID>, state: &mut State) {}
 
     /// Called when the screen is exited.
     ///
@@ -163,7 +176,8 @@ pub trait ScreenWithState<ID, State> {
     ///
     /// Arguments:
     /// * `state` - The state of the application.
-    async fn on_exit(&mut self, state: &mut State) {}
+    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    async fn on_exit(&mut self, navigator: Navigator<ID>, state: &mut State) {}
 
     /// Called when the screen is paused (sent to the background because of [`Navigator::push()`]).
     ///
@@ -171,7 +185,8 @@ pub trait ScreenWithState<ID, State> {
     ///
     /// Arguments:
     /// * `state` - The state of the application.
-    async fn on_pause(&mut self, state: &mut State) {}
+    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    async fn on_pause(&mut self, navigator: Navigator<ID>, state: &mut State) {}
 
     /// Called when the screen is resumed (brought back to the foreground by [`Navigator::back()`]
     /// or similar).
@@ -180,7 +195,8 @@ pub trait ScreenWithState<ID, State> {
     ///
     /// Arguments:
     /// * `state` - The state of the application.
-    async fn on_resume(&mut self, state: &mut State) {}
+    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    async fn on_resume(&mut self, navigator: Navigator<ID>, state: &mut State) {}
 }
 
 // All [`Screen`]s are a [`ScreenWithState`] under the hood.
@@ -192,23 +208,23 @@ where
         self.draw(frame);
     }
 
-    async fn on_event(&mut self, event: Event, navigator: &Navigator<ID>, _state: &mut T) {
+    async fn on_event(&mut self, event: Event, navigator: Navigator<ID>, _state: &mut T) {
         self.on_event(event, navigator).await;
     }
 
-    async fn on_enter(&mut self, _state: &mut T) {
-        self.on_enter().await;
+    async fn on_enter(&mut self, navigator: Navigator<ID>, _state: &mut T) {
+        self.on_enter(navigator).await;
     }
 
-    async fn on_exit(&mut self, _state: &mut T) {
-        self.on_exit().await;
+    async fn on_exit(&mut self, navigator: Navigator<ID>, _state: &mut T) {
+        self.on_exit(navigator).await;
     }
 
-    async fn on_pause(&mut self, _state: &mut T) {
-        self.on_pause().await;
+    async fn on_pause(&mut self, navigator: Navigator<ID>, _state: &mut T) {
+        self.on_pause(navigator).await;
     }
 
-    async fn on_resume(&mut self, _state: &mut T) {
-        self.on_resume().await;
+    async fn on_resume(&mut self, navigator: Navigator<ID>, _state: &mut T) {
+        self.on_resume(navigator).await;
     }
 }

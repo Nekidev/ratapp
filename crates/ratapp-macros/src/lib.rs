@@ -120,25 +120,25 @@ fn generate_screen_state_impl(
 
     let match_on_enter = variants.iter().map(|(name, _)| {
         quote! {
-            #enum_name::#name(screen) => ScreenWithState::on_enter(screen, state).await,
+            #enum_name::#name(screen) => ScreenWithState::on_enter(screen, navigator, state).await,
         }
     });
 
     let match_on_exit = variants.iter().map(|(name, _)| {
         quote! {
-            #enum_name::#name(screen) => ScreenWithState::on_exit(screen, state).await,
+            #enum_name::#name(screen) => ScreenWithState::on_exit(screen, navigator, state).await,
         }
     });
 
     let match_on_pause = variants.iter().map(|(name, _)| {
         quote! {
-            #enum_name::#name(screen) => ScreenWithState::on_pause(screen, state).await,
+            #enum_name::#name(screen) => ScreenWithState::on_pause(screen, navigator, state).await,
         }
     });
 
     let match_on_resume = variants.iter().map(|(name, _)| {
         quote! {
-            #enum_name::#name(screen) => ScreenWithState::on_resume(screen, state).await,
+            #enum_name::#name(screen) => ScreenWithState::on_resume(screen, navigator, state).await,
         }
     });
 
@@ -163,7 +163,7 @@ fn generate_screen_state_impl(
                 }
             }
 
-            async fn on_event(&mut self, event: ratatui::crossterm::event::Event, navigator: &ratapp::Navigator<Self::ID>, state: &mut S) {
+            async fn on_event(&mut self, event: ratatui::crossterm::event::Event, navigator: ratapp::Navigator<Self::ID>, state: &mut S) {
                 use ratapp::ScreenWithState;
 
                 match self {
@@ -171,7 +171,7 @@ fn generate_screen_state_impl(
                 }
             }
 
-            async fn on_enter(&mut self, state: &mut S) {
+            async fn on_enter(&mut self, navigator: ratapp::Navigator<Self::ID>, state: &mut S) {
                 use ratapp::ScreenWithState;
 
                 match self {
@@ -179,7 +179,7 @@ fn generate_screen_state_impl(
                 }
             }
 
-            async fn on_exit(&mut self, state: &mut S) {
+            async fn on_exit(&mut self, navigator: ratapp::Navigator<Self::ID>, state: &mut S) {
                 use ratapp::ScreenWithState;
 
                 match self {
@@ -187,7 +187,7 @@ fn generate_screen_state_impl(
                 }
             }
 
-            async fn on_pause(&mut self, state: &mut S) {
+            async fn on_pause(&mut self, navigator: ratapp::Navigator<Self::ID>, state: &mut S) {
                 use ratapp::ScreenWithState;
 
                 match self {
@@ -195,7 +195,7 @@ fn generate_screen_state_impl(
                 }
             }
 
-            async fn on_resume(&mut self, state: &mut S) {
+            async fn on_resume(&mut self, navigator: ratapp::Navigator<Self::ID>, state: &mut S) {
                 use ratapp::ScreenWithState;
 
                 match self {

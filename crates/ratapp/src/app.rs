@@ -109,6 +109,13 @@ impl<T> App<T> {
         let mut screens = VecDeque::from([S::default()]);
 
         let (events_tx, mut events_rx) = mpsc::unbounded_channel();
+        let navigator = Navigator::new(events_tx);
+
+        screens
+            .back_mut()
+            .unwrap()
+            .on_enter(navigator.clone(), &mut self.state)
+            .await;
 
         let mut draw = true;
 
@@ -127,58 +134,64 @@ impl<T> App<T> {
 
             tokio::select! {
                 Some(event) = self.events.recv() => {
-                    let navigator = Navigator::new(events_tx.clone());
-
-                    screen.on_event(event, &navigator, &mut self.state).await;
+                    screen.on_event(event, navigator.clone(), &mut self.state).await;
                 },
                 Some(action) = events_rx.recv() => {
                     match action {
                         Action::Push(id) => {
-                            screen.on_pause(&mut self.state).await;
+                            screen.on_pause(navigator.clone(), &mut self.state).await;
 
                             let mut screen = S::new(id);
-                            screen.on_enter(&mut self.state).await;
+                            screen.on_enter(navigator.clone(), &mut self.state).await;
 
                             screens.push_back(screen);
+
+                            draw = true;
                         }
                         Action::Replace(id) => {
                             let mut old_screen = screens.pop_back().unwrap();
-                            old_screen.on_exit(&mut self.state).await;
+                            old_screen.on_exit(navigator.clone(), &mut self.state).await;
 
                             let mut new_screen = S::new(id);
-                            new_screen.on_enter(&mut self.state).await;
+                            new_screen.on_enter(navigator.clone(), &mut self.state).await;
                             screens.push_back(new_screen);
+
+                            draw = true;
                         }
                         Action::Back => {
                             if screens.len() > 1 {
                                 let mut old_screen = screens.pop_back().unwrap();
-                                old_screen.on_exit(&mut self.state).await;
+                                old_screen.on_exit(navigator.clone(), &mut self.state).await;
 
                                 let current_screen = screens.back_mut().unwrap();
-                                current_screen.on_resume(&mut self.state).await;
+                                current_screen.on_resume(navigator.clone(), &mut self.state).await;
+
+                                draw = true;
                             }
                         }
                         Action::Clear => {
                             let current_screen = screens.pop_back().unwrap();
 
                             while let Some(mut old_screen) = screens.pop_back() {
-                                old_screen.on_exit(&mut self.state).await;
+                                old_screen.on_exit(navigator.clone(), &mut self.state).await;
                             }
 
                             screens.push_back(current_screen);
                         }
                         Action::Restart => {
                             while let Some(mut old_screen) = screens.pop_back() {
-                                old_screen.on_exit(&mut self.state).await;
+                                old_screen.on_exit(navigator.clone(), &mut self.state).await;
                             }
 
                             let mut new_screen = S::default();
-                            new_screen.on_enter(&mut self.state).await;
+                            new_screen.on_enter(navigator.clone(), &mut self.state).await;
                             screens.push_back(new_screen);
+
+                            draw = true;
                         }
                         Action::Exit => {
                             while let Some(mut old_screen) = screens.pop_back() {
-                                old_screen.on_exit(&mut self.state).await;
+                                old_screen.on_exit(navigator.clone(), &mut self.state).await;
                             }
 
                             break;

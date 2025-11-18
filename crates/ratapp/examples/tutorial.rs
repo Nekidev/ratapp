@@ -48,7 +48,7 @@ impl Screen<ScreenID> for HomeScreen {
         frame.render_widget(text, frame.area());
     }
 
-    async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
+    async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
         if let Event::Key(key_event) = event {
             match key_event.code {
                 KeyCode::Up => {
@@ -110,7 +110,7 @@ impl Screen<ScreenID> for ListScreen {
         frame.render_widget(text, text_area);
     }
 
-    async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
+    async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
         if let Event::Key(key_event) = event {
             match key_event.code {
                 KeyCode::Up => {

@@ -10,6 +10,8 @@
 //! It currently only supports [`tokio`] as the async runtime and
 //! [`crossterm`](https://docs.rs/crossterm) as the terminal backend for [`ratatui`].
 //!
+//! > NOTE: Ratapp is still in early development. APIs may change in future releases.
+//!
 //! # Installation
 //!
 //! In your terminal, run
@@ -17,6 +19,9 @@
 //! ```sh
 //! cargo add ratapp tokio -F tokio/macros,tokio/rt-multi-thread
 //! ```
+//!
+//! You'll need [`tokio`] as the async runtime. The command above adds it with the macros and
+//! the multi-threaded runtime support.
 //!
 //! # Quick Start
 //!
@@ -101,7 +106,7 @@
 //!         // Drawing logic will go here.
 //!     }
 //!
-//!     async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
+//!     async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
 //!         // Terminal-event-handling logic will go here.
 //!     }
 //! }
@@ -159,7 +164,7 @@
 //!        frame.render_widget(text, frame.area());
 //!     }
 //!
-//!     async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
+//!     async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
 //!         // Terminal-event-handling logic will go here.
 //!     }
 //! }
@@ -184,9 +189,9 @@
 //!         // -- Drawing logic as before --
 //!     }
 //!
-//!     async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
-//!         match event {
-//!             Event::Key(key_event) => match key_event.code {
+//!     async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
+//!         if let Event::Key(key_event) = event {
+//!             match key_event.code {
 //!                 KeyCode::Up => {
 //!                     self.counter = self.counter.saturating_add(1);
 //!                 }
@@ -194,8 +199,9 @@
 //!                     self.counter = self.counter.saturating_sub(1);
 //!                 }
 //!                 _ => {}
-//!             },
-//!             _ => {}
+//!             }
+//!
+//!             navigator.rerender(); // Add this line to trigger a rerender after handling the event.
 //!         }
 //!     }
 //! }
@@ -203,8 +209,8 @@
 //!
 //! Now our application will respond to the up and down arrow keys to increment and decrement
 //! the counter displayed on the screen. [`Screen::on_event`] gets called whenever a terminal event
-//! is sent, and the screen will be re-rendered after that. That's why you'll see the screen
-//! updating its numbers when you press the arrow keys.
+//! is sent, and by calling `navigator.rerender()` we trigger a redraw with our updated screen
+//! state. That's why you'll see the screen updating its numbers when you press the arrow keys.
 //!
 //! ## Running an [`App`]
 //!
@@ -216,15 +222,11 @@
 //! ```ignore
 //! use ratapp::App;
 //!
-//! mod screens;
-//!
-//! use screens::AppScreens;
-//!
 //! #[tokio::main]
 //! async fn main() {
-//!     let mut app = App::<AppScreens>::new();
+//!     let mut app = App::new();
 //!
-//!     app.run().await.unwrap();
+//!     app.run::<AppScreens>().await.unwrap();
 //! }
 //! ```
 //!
@@ -292,7 +294,7 @@
 //!         // Drawing logic will go here.
 //!     }
 //!
-//!     async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
+//!     async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
 //!         // Terminal-event-handling logic will go here.
 //!     }
 //! }
@@ -300,31 +302,39 @@
 //!
 //! Perfect. This screen doesn't do anything yet, but there's no point in adding any cool features
 //! to a screen you can't access, so let's add some code to navigate to it. Back to our
-//! `HomeScreen` at `src/screens/home.rs`, let's give a cheerful welcome to the [`Navigator`]!
+//! `HomeScreen` at `src/screens/home.rs`, let's see how to navigate to our new `ListScreen`.
 //!
 //! ## The [`Navigator`]
 //!
-//! As you may have guessed, [`Navigator`] lets you navigate between screens. Its API is quite
-//! simple.
+//! As you may have guessed, [`Navigator`] lets you navigate between screens. It also triggers
+//! re-renders. Its API is quite simple, and it'll look familiar if you've done frontend web
+//! development before.
 //!
 //! ```ignore
-//! navigator.goto(ScreenID::Home).await;
+//! navigator.push(ScreenID::Home);
 //!
-//! navigator.rerender().await;
+//! navigator.rerender();
 //!
-//! navigator.exit().await;
+//! navigator.exit();
 //! ```
 //!
-//! That's it! Simple, yet enough for most use cases. Our first method here, and the one we'll be
-//! using in a minute, is [`Navigator::goto()`]. It takes a `ScreenID` as its only argument and it
-//! allows for navigating to any screen in your app.
+//! Simple, yet enough for most use cases. Our first method here, and the one we'll be using in a
+//! minute, is [`Navigator::push()`]. It takes a `ScreenID` as its only argument and it allows for
+//! navigating to any screen in your app.
 //!
-//! The second method is [`Navigator::rerender()`], which as you may have guessed, causes a
-//! rerender of the current screen. You can call it on demand from a background task, for example,
-//! to dynamically update the screen based on asynchronous state updates.
+//! Applications have a history stack, which works like a list. When you call [`Navigator::push()`]
+//! it adds the new screen to the top of the stack. You can then use [`Navigator::back()`] to go
+//! back to the previous screen. Screen state is kept in that stack, so [`Navigator::back()`] will
+//! restore the screen state right where you left off.
 //!
-//! The third method is [`Navigator::exit()`], which exits the application. Calling it will clean
-//! up everything and exit the application.
+//! The second method listed above is [`Navigator::rerender()`] which causes `ratapp` to redraw the
+//! current screen on your terminal. You can also call it on demand from a background task, for
+//! example, to dynamically update the screen based on asynchronous state updates.
+//!
+//! The third method listed above is [`Navigator::exit()`], which exits the application. Calling it
+//! will clean up everything and exit the application.
+//!
+//! For the full list of [`Navigator`] methods, check its documentation.
 //!
 //! ## Going to Another Screen
 //!
@@ -359,24 +369,25 @@
 //!        frame.render_widget(text, frame.area());
 //!     }
 //!
-//!     async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
-//!         match event {
-//!             Event::Key(key_event) => match key_event.code {
+//!     async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
+//!         if let Event::Key(key_event) = event {
+//!              match key_event.code {
 //!                 KeyCode::Up => {
 //!                     self.counter = self.counter.saturating_add(1);
 //!                 }
 //!                 KeyCode::Down => {
 //!                     self.counter = self.counter.saturating_sub(1);
 //!                 }
-//!                 KeyCode::Enter => {                        // Add this!
-//!                     navigator.goto(ScreenID::List).await;  // Add this!
-//!                 }                                          // Add this!
-//!                 KeyCode::Char('q') => {                    // Add this!
-//!                     navigator.exit().await;                // Add this!
-//!                 }                                          // Add this!
+//!                 KeyCode::Enter => {                  // Add this!
+//!                     navigator.push(ScreenID::List);  // Add this!
+//!                 }                                    // Add this!
+//!                 KeyCode::Char('q') => {              // Add this!
+//!                     navigator.exit();                // Add this!
+//!                 }                                    // Add this!
 //!                 _ => {}
-//!             },
-//!             _ => {}
+//!             }
+//!
+//!             navigator.rerender();
 //!         }
 //!     }
 //! }
@@ -409,18 +420,20 @@
 //!         // Drawing logic will go here.
 //!     }
 //!
-//!     async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
-//!         if let Event::Key(key_event) = event {             // Add this!
-//!             match key_event.code {                         // Add this!
-//!                 KeyCode::Enter => {                        // Add this!
-//!                     navigator.goto(ScreenID::Home).await;  // Add this!
-//!                 }                                          // Add this!
-//!                 KeyCode::Char('q') => {                    // Add this!
-//!                     navigator.exit().await;                // Add this!
-//!                 }                                          // Add this!
-//!                 _ => {}                                    // Add this!
-//!             }                                              // Add this!
-//!         }                                                  // Add this!
+//!     async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
+//!         if let Event::Key(key_event) = event {  // Add this!
+//!             match key_event.code {              // Add this!
+//!                 KeyCode::Enter => {             // Add this!
+//!                     navigator.back();           // Add this!
+//!                 }                               // Add this!
+//!                 KeyCode::Char('q') => {         // Add this!
+//!                     navigator.exit();           // Add this!
+//!                 }                               // Add this!
+//!                 _ => {}                         // Add this!
+//!             }                                   // Add this!
+//!                                                 // Add this!
+//!             navigator.rerender();               // Add this!
+//!         }                                       // Add this!
 //!     }
 //! }
 //! ```
@@ -487,7 +500,7 @@
 //!         frame.render_widget(text, text_area);
 //!     }
 //!
-//!     async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
+//!     async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
 //!         // Our previous code...
 //!     }
 //! }
@@ -508,7 +521,7 @@
 //! impl Screen<ScreenID> for ListScreen {
 //! #   fn draw(&mut self, frame: &mut Frame) {}
 //! #
-//!     async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
+//!     async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
 //!         if let Event::Key(key_event) = event {
 //!             match key_event.code {
 //!                 KeyCode::Up => {                   // Add this!
@@ -524,13 +537,15 @@
 //!                     self.state.select_last();      // Add this!
 //!                 }                                  // Add this!
 //!                 KeyCode::Enter => {
-//!                     navigator.goto(ScreenID::Home).await;
+//!                     navigator.push(ScreenID::Home);
 //!                 }
 //!                 KeyCode::Char('q') => {
-//!                     navigator.exit().await;
+//!                     navigator.exit();
 //!                 }
 //!                 _ => {}
 //!             }
+//!
+//!             navigator.rerender();
 //!         }
 //!     }
 //! }
@@ -621,36 +636,35 @@
 //!         // Use state.theme to determine colors, etc.
 //!     }
 //!
-//!     async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>, state: &mut State) {
+//!     async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>, state: &mut State) {
 //!         // Modify state.theme based on user input, etc.
 //!     }
 //! }
 //!
 //! #[tokio::main]
 //! async fn main() {
-//!     let mut app = App::<MyScreens, State>::with_state(State { theme: Theme::Light });
+//!     let mut app = App::with_state(State { theme: Theme::Light });
 //! }
 //! ```
-//! 
+//!
 //! Note that [`Screen`] and [`ScreenWithState`] can both be combined in a single app. Use the one
 //! that works best for each screen.
-//! 
+//!
 //! ## On-demand Re-rendering
-//! 
-//! `ratapp` provides two ways to trigger re-renders dynamically at the moment. The first one, and
-//! the one you should prefer, is via the [`Screen::rerender()`] method. This method will be
-//! awaited and the screen will be re-rendered once the future is completed. It's called in loop,
-//! so a function that never returns (the default implementation) will never trigger a re-render on
-//! its own, while a function that returns after waiting one second will re-render automatically
-//! every second.
-//! 
+//!
+//! `ratapp` provides the [`Navigator::rerender()`] method to trigger a re-render of the current
+//! screen. Since [`Navigator`] can be cloned and sent across threads, this means you can implement
+//! background tasks that update the UI asynchronously.
+//!
 //! For example, if you want to do a tick-based animation, like a spinner, you could do something
 //! like:
-//! 
+//!
 //! ```
-//! use ratapp::{Screen, Navigator};
+//! use ratapp::{Screen, Navigator, State};
 //! use ratatui::{Frame, crossterm::event::Event, text::Text};
-//! 
+//! use tokio::task::JoinHandle;
+//! use std::time::Duration;
+//!
 //! fn get_tick(tick: usize) -> char {
 //!     match tick % 4 {
 //!         0 => '-',
@@ -660,43 +674,76 @@
 //!         _ => unreachable!(),
 //!     }
 //! }
-//! 
+//!
 //! #[derive(Default)]
 //! struct TickBasedScreen {
-//!     tick: usize,
+//!     tick: State<usize>,
+//!     ticker: Option<JoinHandle<()>>,
 //! }
-//! 
+//!
 //! # enum ScreenID {}
 //! #
 //! impl Screen<ScreenID> for TickBasedScreen {
 //!     fn draw(&mut self, frame: &mut Frame) {
-//!         let text = Text::from(get_tick(self.tick).to_string());
-//! 
+//!         let text = Text::from(get_tick(*self.tick.get()).to_string());
+//!
 //!         frame.render_widget(text, frame.area());
 //!     }
 //! #
-//! #   async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {}
+//! #   async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {}
 //!
-//!     async fn rerender(&mut self) {
-//!         tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-//!         self.tick += 1;
+//!     async fn on_enter(&mut self, navigator: Navigator<ScreenID>) {
+//!         let tick = self.tick.clone();
+//!
+//!         self.ticker = Some(tokio::spawn(async move {
+//!             loop {
+//!                 tokio::time::sleep(Duration::from_millis(200)).await;
+//!                 *tick.get() += 1;
+//!                 navigator.rerender();
+//!             }
+//!         }));
+//!     }
+//!
+//!     async fn on_exit(&mut self, _navigator: Navigator<ScreenID>) {
+//!         if let Some(ticker) = self.ticker.take() {
+//!             ticker.abort();
+//!         }
+//!     }
+//!
+//!     async fn on_resume(&mut self, navigator: Navigator<ScreenID>) {
+//!         self.on_enter(navigator).await;
+//!     }
+//!
+//!     async fn on_pause(&mut self, navigator: Navigator<ScreenID>) {
+//!         self.on_exit(navigator).await;
 //!     }
 //! }
 //! ```
-//! 
+//!
 //! That screen would update itself every 200 milliseconds and add 1 to the tick state, effectively
 //! animating the spinner.
-//! 
-//! The second way to re-render on demand is by calling [`Navigator::rerender()`]. This was the
-//! initial way of triggering re-renders, but it is now deprecated in favor of the
-//! [`Screen::rerender()`] and [`ScreenWithState::rerender()`] methods.
-//! 
+//!
 //! ## Screen Hooks
-//! 
-//! Screens have two hooks that get called when navigating: [`Screen::on_enter()`] and
-//! [`Screen::on_exit()`]. As their names say, they get called when entering and exiting a screen,
-//! respectively. They are both asynchronous methods, so you can perform async operations inside
-//! them.
+//!
+//! Screens have a few different hooks you can override to run code at specific points in their
+//! lifecycle. The most important ones are:
+//!
+//! - `on_enter`: Called when the screen is entered.
+//! - `on_exit`: Called when the screen is exited.
+//! - `on_pause`: Called when the screen is paused (another screen is pushed on top).
+//! - `on_resume`: Called when the screen is resumed (the top screen is popped off).
+//!
+//! These hooks are asynchronous. However, they run sequentially, so make sure to avoid long
+//! operations that could block the UI.
+//!
+//! ## [`State`]
+//!
+//! Sometimes, you want to update the screen state from a background task, like in the tick-based
+//! example above. `ratapp` provides the [`State`] type for this purpose.
+//!
+//! It's a wrapper to [`Arc<Mutex<T>>`](std::sync::Arc) with a nice name, so you should not keep
+//! hold of [`StateHandle`]s across `await` points to avoid deadlocks. Instead, clone the [`State`]
+//! and get a new handle when needed.
 //!
 //! # Contributing
 //!
@@ -707,9 +754,11 @@
 mod app;
 mod navigation;
 mod screen;
+mod state;
 
 pub use app::App;
 pub use navigation::Navigator;
 pub use screen::{Screen, ScreenState, ScreenWithState};
+pub use state::{State, StateHandle};
 
 pub use ratapp_macros::Screens;
