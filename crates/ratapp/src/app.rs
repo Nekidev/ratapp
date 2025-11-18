@@ -134,6 +134,10 @@ impl<T> App<T> {
 
             tokio::select! {
                 Some(event) = self.events.recv() => {
+                    if let Event::Resize(_, _) = event {
+                        draw = true;
+                    }
+
                     screen.on_event(event, navigator.clone(), &mut self.state).await;
                 },
                 Some(action) = events_rx.recv() => {
