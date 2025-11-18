@@ -175,7 +175,7 @@ pub trait ScreenWithState<ID, State> {
     /// * `event` - The terminal event to handle.
     /// * `navigator` - The navigator to navigate between screens or request re-draws.
     /// * `state` - The state of the application.
-    async fn on_event(&mut self, event: Event, navigator: Navigator<ID>, state: &mut State);
+    async fn on_event(&mut self, event: Event, navigator: Navigator<ID>, state: &mut State) {}
 
     /// Called when the screen is entered.
     ///
