@@ -211,6 +211,10 @@
 //! the counter displayed on the screen. [`Screen::on_event`] gets called whenever a terminal event
 //! is sent, and by calling `navigator.rerender()` we trigger a redraw with our updated screen
 //! state. That's why you'll see the screen updating its numbers when you press the arrow keys.
+//! 
+//! [`Screen::draw()`] is only called when a redraw is needed, so it won't be called on every event
+//! unless you explicitly request it with `navigator.rerender()`. This helps optimize performance by
+//! avoiding unnecessary redraws.
 //!
 //! ## Running an [`App`]
 //!
