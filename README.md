@@ -25,9 +25,9 @@ use ratatui::{
 
 #[tokio::main]
 async fn main() {
-    let mut app = App::<AppScreens>::new();
+    let mut app = App::new();
 
-    app.run().await.unwrap();
+    app.run::<AppScreens>().await.unwrap();
 }
 
 #[derive(Screens)]
@@ -64,7 +64,7 @@ impl Screen<ScreenID> for HomeScreen {
         frame.render_widget(text, frame.area());
     }
 
-    async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
+    async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
         if let Event::Key(key_event) = event {
             match key_event.code {
                 KeyCode::Up => {
@@ -74,13 +74,15 @@ impl Screen<ScreenID> for HomeScreen {
                     self.counter = self.counter.saturating_sub(1);
                 }
                 KeyCode::Enter => {
-                    navigator.goto(ScreenID::List).await;
+                    navigator.push(ScreenID::List);
                 }
                 KeyCode::Char('q') => {
-                    navigator.exit().await;
+                    navigator.exit();
                 }
                 _ => {}
             }
+
+            navigator.rerender();
         }
     }
 }
@@ -126,7 +128,7 @@ impl Screen<ScreenID> for ListScreen {
         frame.render_widget(text, text_area);
     }
 
-    async fn on_event(&mut self, event: Event, navigator: &Navigator<ScreenID>) {
+    async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {
         if let Event::Key(key_event) = event {
             match key_event.code {
                 KeyCode::Up => {
@@ -142,13 +144,15 @@ impl Screen<ScreenID> for ListScreen {
                     self.state.select_last();
                 }
                 KeyCode::Enter => {
-                    navigator.goto(ScreenID::Home).await;
+                    navigator.back();
                 }
                 KeyCode::Char('q') => {
-                    navigator.exit().await;
+                    navigator.exit();
                 }
                 _ => {}
             }
+
+            navigator.rerender();
         }
     }
 }
