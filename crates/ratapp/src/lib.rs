@@ -137,7 +137,7 @@
 //! ## A Simple Screen
 //!
 //! Now yes, let's draw something. Our screen right now is empty, so let's add some content to it.
-//! Let's update our `draw` method to render a simple paragraph.
+//! Let's update our `draw` method to draw a simple paragraph.
 //!
 //! ```
 //! # use ratapp::{App, Navigator, Screen};
@@ -201,7 +201,7 @@
 //!                 _ => {}
 //!             }
 //!
-//!             navigator.rerender(); // Add this line to trigger a rerender after handling the event.
+//!             navigator.redraw(); // Add this line to trigger a re-draw after handling the event.
 //!         }
 //!     }
 //! }
@@ -209,11 +209,11 @@
 //!
 //! Now our application will respond to the up and down arrow keys to increment and decrement
 //! the counter displayed on the screen. [`Screen::on_event`] gets called whenever a terminal event
-//! is sent, and by calling `navigator.rerender()` we trigger a redraw with our updated screen
+//! is sent, and by calling `navigator.redraw()` we trigger a redraw with our updated screen
 //! state. That's why you'll see the screen updating its numbers when you press the arrow keys.
 //! 
 //! [`Screen::draw()`] is only called when a redraw is needed, so it won't be called on every event
-//! unless you explicitly request it with `navigator.rerender()`. This helps optimize performance by
+//! unless you explicitly request it with `navigator.redraw()`. This helps optimize performance by
 //! avoiding unnecessary redraws.
 //!
 //! ## Running an [`App`]
@@ -311,13 +311,13 @@
 //! ## The [`Navigator`]
 //!
 //! As you may have guessed, [`Navigator`] lets you navigate between screens. It also triggers
-//! re-renders. Its API is quite simple, and it'll look familiar if you've done frontend web
+//! re-re-draws. Its API is quite simple, and it'll look familiar if you've done frontend web
 //! development before.
 //!
 //! ```ignore
 //! navigator.push(ScreenID::Home);
 //!
-//! navigator.rerender();
+//! navigator.redraw();
 //!
 //! navigator.exit();
 //! ```
@@ -331,7 +331,7 @@
 //! back to the previous screen. Screen state is kept in that stack, so [`Navigator::back()`] will
 //! restore the screen state right where you left off.
 //!
-//! The second method listed above is [`Navigator::rerender()`] which causes `ratapp` to redraw the
+//! The second method listed above is [`Navigator::redraw()`] which causes `ratapp` to redraw the
 //! current screen on your terminal. You can also call it on demand from a background task, for
 //! example, to dynamically update the screen based on asynchronous state updates.
 //!
@@ -391,7 +391,7 @@
 //!                 _ => {}
 //!             }
 //!
-//!             navigator.rerender();
+//!             navigator.redraw();
 //!         }
 //!     }
 //! }
@@ -436,7 +436,7 @@
 //!                 _ => {}                         // Add this!
 //!             }                                   // Add this!
 //!                                                 // Add this!
-//!             navigator.rerender();               // Add this!
+//!             navigator.redraw();                 // Add this!
 //!         }                                       // Add this!
 //!     }
 //! }
@@ -549,7 +549,7 @@
 //!                 _ => {}
 //!             }
 //!
-//!             navigator.rerender();
+//!             navigator.redraw();
 //!         }
 //!     }
 //! }
@@ -593,7 +593,7 @@
 //!
 //! This part of the documentation covers more advanced usage of `ratapp`, including how to manage
 //! global application state across screens using the [`ScreenWithState`] trait, how to dynamically
-//! trigger re-renders, and more. It's not a step-by-step tutorial like the Quick Start, but it's
+//! trigger re-draws, and more. It's not a step-by-step tutorial like the Quick Start, but it's
 //! still meant to be easy to follow.
 //!
 //! ## Global Application State
@@ -654,9 +654,9 @@
 //! Note that [`Screen`] and [`ScreenWithState`] can both be combined in a single app. Use the one
 //! that works best for each screen.
 //!
-//! ## On-demand Re-rendering
+//! ## On-demand Re-drawing
 //!
-//! `ratapp` provides the [`Navigator::rerender()`] method to trigger a re-render of the current
+//! `ratapp` provides the [`Navigator::redraw()`] method to trigger a re-draw of the current
 //! screen. Since [`Navigator`] can be cloned and sent across threads, this means you can implement
 //! background tasks that update the UI asynchronously.
 //!
@@ -664,11 +664,14 @@
 //! like:
 //!
 //! ```
-//! use ratapp::{Screen, Navigator, State};
-//! use ratatui::{Frame, crossterm::event::Event, text::Text};
-//! use tokio::task::JoinHandle;
+//! use ratapp::{App, Navigator, Screen, Screens};
+//! use ratatui::{
+//!     Frame,
+//!     crossterm::event::{Event, KeyCode},
+//!     text::Text,
+//! };
 //! use std::time::Duration;
-//!
+//! 
 //! fn get_tick(tick: usize) -> char {
 //!     match tick % 4 {
 //!         0 => '-',
@@ -678,54 +681,36 @@
 //!         _ => unreachable!(),
 //!     }
 //! }
-//!
+//! 
 //! #[derive(Default)]
 //! struct TickBasedScreen {
-//!     tick: State<usize>,
-//!     ticker: Option<JoinHandle<()>>,
+//!     tick: usize,
 //! }
-//!
-//! # enum ScreenID {}
-//! #
+//! 
 //! impl Screen<ScreenID> for TickBasedScreen {
 //!     fn draw(&mut self, frame: &mut Frame) {
-//!         let text = Text::from(get_tick(*self.tick.get()).to_string());
-//!
+//!         let text = Text::from(format!(
+//!             "{} Dummy loading... (press Q to exit)",
+//!             get_tick(self.tick)
+//!         ));
+//! 
 //!         frame.render_widget(text, frame.area());
 //!     }
-//! #
-//! #   async fn on_event(&mut self, event: Event, navigator: Navigator<ScreenID>) {}
-//!
-//!     async fn on_enter(&mut self, navigator: Navigator<ScreenID>) {
-//!         let tick = self.tick.clone();
-//!
-//!         self.ticker = Some(tokio::spawn(async move {
-//!             loop {
-//!                 tokio::time::sleep(Duration::from_millis(200)).await;
-//!                 *tick.get() += 1;
-//!                 navigator.rerender();
-//!             }
-//!         }));
-//!     }
-//!
-//!     async fn on_exit(&mut self, _navigator: Navigator<ScreenID>) {
-//!         if let Some(ticker) = self.ticker.take() {
-//!             ticker.abort();
-//!         }
-//!     }
-//!
-//!     async fn on_resume(&mut self, navigator: Navigator<ScreenID>) {
-//!         self.on_enter(navigator).await;
-//!     }
-//!
-//!     async fn on_pause(&mut self, navigator: Navigator<ScreenID>) {
-//!         self.on_exit(navigator).await;
+//! 
+//!     async fn task(&mut self, navigator: Navigator<ScreenID>) {
+//!         tokio::time::sleep(Duration::from_millis(200)).await;
+//!         self.tick = self.tick.wrapping_add(1);
+//!         navigator.redraw();
 //!     }
 //! }
 //! ```
 //!
 //! That screen would update itself every 200 milliseconds and add 1 to the tick state, effectively
 //! animating the spinner.
+//! 
+//! As a side note, given that `task()` gets cancelled on events, if you hold down a key pressed,
+//! the spinner will stop updating until the key is released (because the task call gets cancelled
+//! before it can update).
 //!
 //! ## Screen Hooks
 //!

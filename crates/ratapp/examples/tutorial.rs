@@ -100,9 +100,7 @@ impl Screen<ScreenID> for ListScreen {
 
         let text = Paragraph::new(vec![
             Line::from("Use the arrows up and down to change the selected item."),
-            Line::from(""),
             Line::from("Press enter to go back home."),
-            Line::from(""),
             Line::from("Press Q to exit."),
         ]);
 

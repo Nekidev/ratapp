@@ -71,7 +71,7 @@ impl ScreenWithState<ScreenID, State> for HomeScreen {
                 _ => {}
             }
 
-            navigator.rerender();
+            navigator.redraw();
         }
     }
 }
@@ -141,7 +141,7 @@ impl Screen<ScreenID> for ListScreen {
                 _ => {}
             }
 
-            navigator.rerender();
+            navigator.redraw();
         }
     }
 }

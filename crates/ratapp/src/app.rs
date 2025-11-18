@@ -96,7 +96,7 @@ impl<T> App<T> {
         }
     }
 
-    /// Runs the main application loop, handling events and screen rendering.
+    /// Runs the main application loop, handling events and screen re-drawing.
     ///
     /// Returns:
     /// `std::io::Result<()>` - Result of the application run.
@@ -133,6 +133,7 @@ impl<T> App<T> {
             }
 
             tokio::select! {
+                _ = screen.task(navigator.clone(), &mut self.state) => {},
                 Some(event) = self.events.recv() => {
                     if let Event::Resize(_, _) = event {
                         draw = true;
@@ -200,7 +201,7 @@ impl<T> App<T> {
 
                             break;
                         }
-                        Action::Rerender => {
+                        Action::Redraw => {
                             draw = true;
                         }
                     }

@@ -82,7 +82,7 @@ impl Screen<ScreenID> for HomeScreen {
                 _ => {}
             }
 
-            navigator.rerender();
+            navigator.redraw();
         }
     }
 }
@@ -152,7 +152,7 @@ impl Screen<ScreenID> for ListScreen {
                 _ => {}
             }
 
-            navigator.rerender();
+            navigator.redraw();
         }
     }
 }

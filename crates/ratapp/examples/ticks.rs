@@ -1,11 +1,10 @@
-use ratapp::{App, Navigator, Screen, Screens, State};
+use ratapp::{App, Navigator, Screen, Screens};
 use ratatui::{
     Frame,
     crossterm::event::{Event, KeyCode},
     text::Text,
 };
 use std::time::Duration;
-use tokio::task::JoinHandle;
 
 #[tokio::main]
 async fn main() {
@@ -37,15 +36,14 @@ fn get_tick(tick: usize) -> char {
 
 #[derive(Default)]
 struct TickBasedScreen {
-    tick: State<usize>,
-    ticker: Option<JoinHandle<()>>,
+    tick: usize,
 }
 
 impl Screen<ScreenID> for TickBasedScreen {
     fn draw(&mut self, frame: &mut Frame) {
         let text = Text::from(format!(
             "{} Dummy loading... (press Q to exit)",
-            get_tick(*self.tick.get())
+            get_tick(self.tick)
         ));
 
         frame.render_widget(text, frame.area());
@@ -59,29 +57,9 @@ impl Screen<ScreenID> for TickBasedScreen {
         }
     }
 
-    async fn on_enter(&mut self, navigator: Navigator<ScreenID>) {
-        let tick = self.tick.clone();
-
-        self.ticker = Some(tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(Duration::from_millis(200)).await;
-                *tick.get() += 1;
-                navigator.rerender();
-            }
-        }));
-    }
-
-    async fn on_exit(&mut self, _navigator: Navigator<ScreenID>) {
-        if let Some(ticker) = self.ticker.take() {
-            ticker.abort();
-        }
-    }
-
-    async fn on_resume(&mut self, navigator: Navigator<ScreenID>) {
-        self.on_enter(navigator).await;
-    }
-
-    async fn on_pause(&mut self, navigator: Navigator<ScreenID>) {
-        self.on_exit(navigator).await;
+    async fn task(&mut self, navigator: Navigator<ScreenID>) {
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        self.tick = self.tick.wrapping_add(1);
+        navigator.redraw();
     }
 }

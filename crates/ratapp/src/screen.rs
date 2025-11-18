@@ -1,3 +1,5 @@
+use std::future;
+
 use ratatui::{Frame, crossterm::event::Event};
 
 use crate::navigation::Navigator;
@@ -61,6 +63,7 @@ pub trait ScreenState<S = ()>: Default {
     async fn on_exit(&mut self, navigator: Navigator<Self::ID>, state: &mut S);
     async fn on_pause(&mut self, navigator: Navigator<Self::ID>, state: &mut S);
     async fn on_resume(&mut self, navigator: Navigator<Self::ID>, state: &mut S);
+    async fn task(&mut self, navigator: Navigator<Self::ID>, state: &mut S);
 }
 
 /// A screen in the application.
@@ -69,9 +72,12 @@ pub trait ScreenState<S = ()>: Default {
 /// - [`draw()`](Screen::draw): Draws the screen.
 /// - [`on_event()`](Screen::on_event): Handles an event.
 /// - [`on_enter()`](Screen::on_enter): Called when the screen is entered.
+/// - [`on_pause()`](Screen::on_pause): Called when the screen is paused (sent to background).
+/// - [`on_resume()`](Screen::on_resume): Called when the screen is resumed (brought back to the
+///   foreground).
 /// - [`on_exit()`](Screen::on_exit): Called when the screen is exited.
-/// - [`rerender()`](Screen::rerender): An async method that when returns causes the screen to
-///   rerender. By default it never returns.
+/// - [`task()`](Screen::task): An asynchronous task that runs in the background while the screen
+///   is active.
 ///
 /// All methods are asynchronous except for `draw()`.
 ///
@@ -89,12 +95,12 @@ pub trait Screen<ID>: Default {
     /// Handles a terminal event.
     ///
     /// Every time an event is received, this method is called with the event and a navigator. Once
-    /// it returns, the screen is rerendered.
+    /// it returns, the screen is re-drawn.
     ///
     /// Arguments:
     /// * `event` - The terminal event to handle.
-    /// * `navigator` - The navigator to navigate between screens or request rerenders.
-    async fn on_event(&mut self, event: Event, navigator: Navigator<ID>);
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
+    async fn on_event(&mut self, event: Event, navigator: Navigator<ID>) {}
 
     /// Called when the screen is entered.
     ///
@@ -103,7 +109,7 @@ pub trait Screen<ID>: Default {
     /// It can be used to initialize the screen state or perform any setup tasks.
     ///
     /// Arguments:
-    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
     async fn on_enter(&mut self, navigator: Navigator<ID>) {}
 
     /// Called when the screen is exited.
@@ -113,7 +119,7 @@ pub trait Screen<ID>: Default {
     /// It can be used to clean up the screen state or perform any teardown tasks.
     ///
     /// Arguments:
-    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
     async fn on_exit(&mut self, navigator: Navigator<ID>) {}
 
     /// Called when the screen is paused (sent to the background because of [`Navigator::push()`]).
@@ -121,7 +127,7 @@ pub trait Screen<ID>: Default {
     /// This method can be used to pause any ongoing tasks or animations.
     ///
     /// Arguments:
-    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
     async fn on_pause(&mut self, navigator: Navigator<ID>) {}
 
     /// Called when the screen is resumed (brought back to the foreground by [`Navigator::back()`]
@@ -130,8 +136,22 @@ pub trait Screen<ID>: Default {
     /// This method can be used to resume any paused tasks or animations.
     ///
     /// Arguments:
-    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
     async fn on_resume(&mut self, navigator: Navigator<ID>) {}
+
+    /// An asynchronous task that runs in loop the background.
+    ///
+    /// It may (and will) get cancelled and restarted on events and navigation actions, so for any
+    /// long-lived tasks prefer spawning a separate tokio task inside [`Screen::on_enter()`] and
+    /// managing its lifecycle manually.
+    ///
+    /// It will only be run when the screen is active (in the foreground).
+    ///
+    /// Arguments:
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
+    async fn task(&mut self, navigator: Navigator<ID>) {
+        future::pending().await
+    }
 }
 
 /// A screen in the application with access to global application state.
@@ -149,11 +169,11 @@ pub trait ScreenWithState<ID, State> {
     /// Handles a terminal event.
     ///
     /// Every time an event is received, this method is called with the event and a navigator. Once
-    /// it returns, the screen is rerendered.
+    /// it returns, the screen is re-drawn.
     ///
     /// Arguments:
     /// * `event` - The terminal event to handle.
-    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
     /// * `state` - The state of the application.
     async fn on_event(&mut self, event: Event, navigator: Navigator<ID>, state: &mut State);
 
@@ -165,7 +185,7 @@ pub trait ScreenWithState<ID, State> {
     ///
     /// Arguments:
     /// * `state` - The state of the application.
-    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
     async fn on_enter(&mut self, navigator: Navigator<ID>, state: &mut State) {}
 
     /// Called when the screen is exited.
@@ -176,7 +196,7 @@ pub trait ScreenWithState<ID, State> {
     ///
     /// Arguments:
     /// * `state` - The state of the application.
-    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
     async fn on_exit(&mut self, navigator: Navigator<ID>, state: &mut State) {}
 
     /// Called when the screen is paused (sent to the background because of [`Navigator::push()`]).
@@ -185,7 +205,7 @@ pub trait ScreenWithState<ID, State> {
     ///
     /// Arguments:
     /// * `state` - The state of the application.
-    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
     async fn on_pause(&mut self, navigator: Navigator<ID>, state: &mut State) {}
 
     /// Called when the screen is resumed (brought back to the foreground by [`Navigator::back()`]
@@ -195,8 +215,23 @@ pub trait ScreenWithState<ID, State> {
     ///
     /// Arguments:
     /// * `state` - The state of the application.
-    /// * `navigator` - The navigator to navigate between screens or request rerenders.
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
     async fn on_resume(&mut self, navigator: Navigator<ID>, state: &mut State) {}
+
+    /// An asynchronous task that runs in loop the background.
+    ///
+    /// It may (and will) get cancelled and restarted on events and navigation actions, so for any
+    /// long-lived tasks prefer spawning a separate tokio task inside [`Screen::on_enter()`] and
+    /// managing its lifecycle manually.
+    ///
+    /// It will only be run when the screen is active (in the foreground).
+    ///
+    /// Arguments:
+    /// * `navigator` - The navigator to navigate between screens or request re-draws.
+    /// * `state` - The state of the application.
+    async fn task(&mut self, navigator: Navigator<ID>, state: &mut State) {
+        future::pending().await
+    }
 }
 
 // All [`Screen`]s are a [`ScreenWithState`] under the hood.
@@ -226,5 +261,9 @@ where
 
     async fn on_resume(&mut self, navigator: Navigator<ID>, _state: &mut T) {
         self.on_resume(navigator).await;
+    }
+
+    async fn task(&mut self, navigator: Navigator<ID>, _state: &mut T) {
+        self.task(navigator).await;
     }
 }

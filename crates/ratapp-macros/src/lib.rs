@@ -142,6 +142,12 @@ fn generate_screen_state_impl(
         }
     });
 
+    let match_task = variants.iter().map(|(name, _)| {
+        quote! {
+            #enum_name::#name(screen) => ScreenWithState::task(screen, navigator, state).await,
+        }
+    });
+
     let screen_state_impl = quote! {
         impl<S> ratapp::ScreenState<S> for #enum_name
         where
@@ -200,6 +206,14 @@ fn generate_screen_state_impl(
 
                 match self {
                     #(#match_on_resume)*
+                }
+            }
+
+            async fn task(&mut self, navigator: ratapp::Navigator<Self::ID>, state: &mut S) {
+                use ratapp::ScreenWithState;
+
+                match self {
+                    #(#match_task)*
                 }
             }
         }
