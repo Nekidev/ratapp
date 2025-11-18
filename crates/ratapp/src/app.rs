@@ -1,9 +1,14 @@
 //! The main application loop and event handling.
 
-use ratatui::crossterm::event::{self, Event};
-use tokio::sync::{mpsc, watch};
+use std::collections::VecDeque;
 
-use crate::{navigation::Navigator, screen::ScreenState};
+use ratatui::crossterm::event::{self, Event};
+use tokio::sync::mpsc;
+
+use crate::{
+    navigation::{Action, Navigator},
+    screen::ScreenState,
+};
 
 /// The main application struct that runs the event loop and manages screens.
 ///
@@ -11,15 +16,15 @@ use crate::{navigation::Navigator, screen::ScreenState};
 /// [`Screens`](crate::Screens)-derived type.
 ///
 /// ```ignore
-/// let mut app = App::<MyScreens>::new();
+/// let mut app = App::new();
 /// ```
 ///
 /// Then, to run the application, call the asynchronous [`App::run()`] method:
 ///
 /// ```ignore
-/// let mut app = App::<MyScreens>::new();
+/// let mut app = App::new();
 ///
-/// app.run().await?;
+/// app.run::<MyScreens>().await?;
 /// ```
 ///
 /// You can also create an `App` instance with a global application state using the
@@ -27,27 +32,19 @@ use crate::{navigation::Navigator, screen::ScreenState};
 ///
 /// ```ignore
 /// let initial_state = MyAppState { /* initialize your state here */ };
-/// let mut app = App::<MyScreens, MyAppState>::with_state(initial_state);
+/// let mut app = App::with_state(initial_state);
 /// ```
 ///
 /// To use application state within your screens, implement the
 /// [`ScreenWithState`](crate::ScreenWithState) trait for your screens instead of the
 /// [`Screen`](crate::Screen) trait. This allows your screens to access and modify the shared
 /// application state.
-pub struct App<S, T = ()>
-where
-    S: ScreenState<T>,
-{
-    renders: (watch::Sender<()>, watch::Receiver<()>),
+pub struct App<T = ()> {
     events: mpsc::UnboundedReceiver<Event>,
-    screen: S,
     state: T,
 }
 
-impl<S> App<S, ()>
-where
-    S: ScreenState<()>,
-{
+impl App<()> {
     /// Creates a new `App` instance with the default screen without any application state.
     ///
     /// Returns:
@@ -65,21 +62,14 @@ where
             }
         });
 
-        let (renders_tx, renders_rx) = watch::channel(());
-
         Self {
-            renders: (renders_tx, renders_rx),
             events: events_rx,
-            screen: S::default(),
             state: (),
         }
     }
 }
 
-impl<S, T> App<S, T>
-where
-    S: ScreenState<T>,
-{
+impl<T> App<T> {
     /// Creates a new `App` instance with the default screen and provided application state.
     ///
     /// Parameters:
@@ -100,12 +90,8 @@ where
             }
         });
 
-        let (renders_tx, renders_rx) = watch::channel(());
-
         Self {
-            renders: (renders_tx, renders_rx),
             events: events_rx,
-            screen: S::default(),
             state,
         }
     }
@@ -114,40 +100,94 @@ where
     ///
     /// Returns:
     /// `std::io::Result<()>` - Result of the application run.
-    pub async fn run(&mut self) -> std::io::Result<()> {
+    pub async fn run<S>(&mut self) -> std::io::Result<()>
+    where
+        S: ScreenState<T>,
+    {
         let mut terminal = ratatui::init();
 
-        // TODO: Implement navigation history with a stack, (watch?) channels, and
-        // `navigation::Action`. A `History` struct abstraction may be useful here.
+        let mut screens = VecDeque::from([S::default()]);
+
+        let (events_tx, mut events_rx) = mpsc::unbounded_channel();
+
+        let mut draw = true;
 
         loop {
-            terminal
-                .draw(|frame| self.screen.draw(frame, &self.state))
-                .inspect_err(|_| {
-                    ratatui::restore();
-                })?;
+            let screen = screens.back_mut().expect("No screen in the stack!");
+
+            if draw {
+                terminal
+                    .draw(|frame| screen.draw(frame, &self.state))
+                    .inspect_err(|_| {
+                        ratatui::restore();
+                    })?;
+
+                draw = false;
+            }
 
             tokio::select! {
-                Ok(_) = self.renders.1.changed() => {},
                 Some(event) = self.events.recv() => {
-                    let navigator = Navigator::new(self.renders.0.clone());
+                    let navigator = Navigator::new(events_tx.clone());
 
-                    self.screen.on_event(event, &navigator, &mut self.state).await;
-
-                    let lock = navigator.inner.lock().await;
-
-                    if lock.should_exit {
-                        self.screen.on_exit(&mut self.state).await;
-                        break;
-                    }
-
-                    if let Some(id) = lock.next_screen {
-                        self.screen.on_exit(&mut self.state).await;
-                        self.screen.navigate(&id);
-                        self.screen.on_enter(&mut self.state).await;
-                    }
+                    screen.on_event(event, &navigator, &mut self.state).await;
                 },
-                _ = self.screen.rerender(&mut self.state) => {}
+                Some(action) = events_rx.recv() => {
+                    match action {
+                        Action::Push(id) => {
+                            screen.on_pause(&mut self.state).await;
+
+                            let mut screen = S::new(id);
+                            screen.on_enter(&mut self.state).await;
+
+                            screens.push_back(screen);
+                        }
+                        Action::Replace(id) => {
+                            let mut old_screen = screens.pop_back().unwrap();
+                            old_screen.on_exit(&mut self.state).await;
+
+                            let mut new_screen = S::new(id);
+                            new_screen.on_enter(&mut self.state).await;
+                            screens.push_back(new_screen);
+                        }
+                        Action::Back => {
+                            if screens.len() > 1 {
+                                let mut old_screen = screens.pop_back().unwrap();
+                                old_screen.on_exit(&mut self.state).await;
+
+                                let current_screen = screens.back_mut().unwrap();
+                                current_screen.on_resume(&mut self.state).await;
+                            }
+                        }
+                        Action::Clear => {
+                            let current_screen = screens.pop_back().unwrap();
+
+                            while let Some(mut old_screen) = screens.pop_back() {
+                                old_screen.on_exit(&mut self.state).await;
+                            }
+
+                            screens.push_back(current_screen);
+                        }
+                        Action::Restart => {
+                            while let Some(mut old_screen) = screens.pop_back() {
+                                old_screen.on_exit(&mut self.state).await;
+                            }
+
+                            let mut new_screen = S::default();
+                            new_screen.on_enter(&mut self.state).await;
+                            screens.push_back(new_screen);
+                        }
+                        Action::Exit => {
+                            while let Some(mut old_screen) = screens.pop_back() {
+                                old_screen.on_exit(&mut self.state).await;
+                            }
+
+                            break;
+                        }
+                        Action::Rerender => {
+                            draw = true;
+                        }
+                    }
+                }
             }
         }
 
@@ -157,9 +197,8 @@ where
     }
 }
 
-impl<S, T> Default for App<S, T>
+impl<T> Default for App<T>
 where
-    S: ScreenState<T>,
     T: Default,
 {
     fn default() -> Self {

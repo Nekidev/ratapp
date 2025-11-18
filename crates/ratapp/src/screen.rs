@@ -1,12 +1,10 @@
-use std::future;
-
 use ratatui::{Frame, crossterm::event::Event};
 
 use crate::navigation::Navigator;
 
 /// The state of the application screen.
 ///
-/// All methods but `navigate()` are maps to the underlying active [`Screen`]'s methods. Since it's
+/// All methods but `new()` are maps to the underlying active [`Screen`]'s methods. Since it's
 /// boilerplate-y to implement those methods just to forward them to the active screen, prefer the
 /// [`Screens`](crate::Screens) derive macro to automatically generate this trait implementation.
 ///
@@ -15,6 +13,13 @@ use crate::navigation::Navigator;
 /// ```ignore
 /// impl ScreenState for AppScreens {
 ///     type ID = ScreenID;
+///
+///     fn new(id: Self::ID) -> Self {
+///         match id {
+///             ScreenID::First => AppScreens::First(FirstScreen::default()),
+///             ScreenID::Second => AppScreens::Second(SecondScreen::default()),
+///         }
+///     }
 ///
 ///     fn draw(&mut self, frame: &mut Frame) {
 ///         match self {
@@ -34,18 +39,6 @@ use crate::navigation::Navigator;
 /// }
 /// ```
 ///
-/// Repeat it for all methods. The only exception is `navigate()`, which should switch the active
-/// screen to the one identified by the given ID. Your implementation could look like this:
-///
-/// ```ignore
-/// fn navigate(&mut self, id: &Self::ID) {
-///     *self = match id {
-///         ScreenID::First => AppScreens::First(Default::default()),
-///         ScreenID::Second => AppScreens::Second(Default::default()),
-///     };
-/// }
-/// ```
-///
 /// Once that's done, you'll also need to create a `ScreenID` enum to identify the screens, like
 /// so:
 ///
@@ -61,12 +54,13 @@ use crate::navigation::Navigator;
 pub trait ScreenState<S = ()>: Default {
     type ID: Copy;
 
+    fn new(id: Self::ID) -> Self;
     fn draw(&mut self, frame: &mut Frame, state: &S);
     async fn on_event(&mut self, event: Event, navigator: &Navigator<Self::ID>, state: &mut S);
     async fn on_enter(&mut self, state: &mut S);
     async fn on_exit(&mut self, state: &mut S);
-    async fn rerender(&mut self, state: &mut S);
-    fn navigate(&mut self, id: &Self::ID);
+    async fn on_pause(&mut self, state: &mut S);
+    async fn on_resume(&mut self, state: &mut S);
 }
 
 /// A screen in the application.
@@ -116,22 +110,16 @@ pub trait Screen<ID>: Default {
     /// It can be used to clean up the screen state or perform any teardown tasks.
     async fn on_exit(&mut self) {}
 
-    /// An async method that when returns causes the screen to rerender on return.
+    /// Called when the screen is paused (sent to the background because of [`Navigator::push()`]).
     ///
-    /// It can be used to wait for some condition to be met before requesting a rerender. An
-    /// example use of this is when waiting for some data to be loaded asynchronously (sent from a
-    /// background task), or to make the screen re-render every certain time (ticks).
+    /// This method can be used to pause any ongoing tasks or animations.
+    async fn on_pause(&mut self) {}
+
+    /// Called when the screen is resumed (brought back to the foreground by [`Navigator::back()`]
+    /// or similar).
     ///
-    /// For example, to rerender every second, you could do:
-    ///
-    /// ```ignore
-    /// async fn rerender(&mut self) {
-    ///     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    /// }
-    /// ```
-    async fn rerender(&mut self) {
-        future::pending::<()>().await;
-    }
+    /// This method can be used to resume any paused tasks or animations.
+    async fn on_resume(&mut self) {}
 }
 
 /// A screen in the application with access to global application state.
@@ -177,25 +165,22 @@ pub trait ScreenWithState<ID, State> {
     /// * `state` - The state of the application.
     async fn on_exit(&mut self, state: &mut State) {}
 
-    /// An async method that when returns causes the screen to rerender on return.
+    /// Called when the screen is paused (sent to the background because of [`Navigator::push()`]).
     ///
-    /// It can be used to wait for some condition to be met before requesting a rerender. An
-    /// example use of this is when waiting for some data to be loaded asynchronously (sent from a
-    /// background task), or to make the screen re-render every certain time (ticks).
-    ///
-    /// For example, to rerender every second, you could do:
-    ///
-    /// ```ignore
-    /// async fn rerender(&mut self, state: &mut State) {
-    ///     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    /// }
-    /// ```
+    /// This method can be used to pause any ongoing tasks or animations.
     ///
     /// Arguments:
     /// * `state` - The state of the application.
-    async fn rerender(&mut self, state: &mut State) {
-        future::pending::<()>().await;
-    }
+    async fn on_pause(&mut self, state: &mut State) {}
+
+    /// Called when the screen is resumed (brought back to the foreground by [`Navigator::back()`]
+    /// or similar).
+    ///
+    /// This method can be used to resume any paused tasks or animations.
+    ///
+    /// Arguments:
+    /// * `state` - The state of the application.
+    async fn on_resume(&mut self, state: &mut State) {}
 }
 
 // All [`Screen`]s are a [`ScreenWithState`] under the hood.
@@ -219,7 +204,11 @@ where
         self.on_exit().await;
     }
 
-    async fn rerender(&mut self, _state: &mut T) {
-        self.rerender().await;
+    async fn on_pause(&mut self, _state: &mut T) {
+        self.on_pause().await;
+    }
+
+    async fn on_resume(&mut self, _state: &mut T) {
+        self.on_resume().await;
     }
 }

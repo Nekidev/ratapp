@@ -9,9 +9,9 @@ use ratatui::{
 
 #[tokio::main]
 async fn main() {
-    let mut app = App::<AppScreens, u32>::with_state(5u32);
+    let mut app = App::with_state(5u32);
 
-    app.run().await.unwrap();
+    app.run::<AppScreens>().await.unwrap();
 }
 
 #[derive(Screens)]
@@ -58,10 +58,10 @@ impl Screen<ScreenID> for HomeScreen {
                     self.counter = self.counter.saturating_sub(1);
                 }
                 KeyCode::Enter => {
-                    navigator.goto(ScreenID::List).await;
+                    navigator.push(ScreenID::List);
                 }
                 KeyCode::Char('q') => {
-                    navigator.exit().await;
+                    navigator.exit();
                 }
                 _ => {}
             }
@@ -126,10 +126,10 @@ impl Screen<ScreenID> for ListScreen {
                     self.state.select_last();
                 }
                 KeyCode::Enter => {
-                    navigator.goto(ScreenID::Home).await;
+                    navigator.back();
                 }
                 KeyCode::Char('q') => {
-                    navigator.exit().await;
+                    navigator.exit();
                 }
                 _ => {}
             }

@@ -5,9 +5,9 @@ use syn::{Data, DataEnum, DeriveInput, Type, parse_macro_input};
 
 /// Derive macro to automatically implement the [`ScreenState`](ratapp::ScreenState) trait for an
 /// enum representing the application's screens.
-/// 
+///
 /// Each variant of the enum should hold a single unnamed field of the screen type. For example:
-/// 
+///
 /// ```ignore
 /// #[derive(ratapp::Screens)]
 /// enum AppScreens {
@@ -15,13 +15,13 @@ use syn::{Data, DataEnum, DeriveInput, Type, parse_macro_input};
 ///     Settings(SettingsScreen),
 /// }
 /// ```
-/// 
+///
 /// This macro will generate:
-/// 
+///
 /// - A `ScreenID` enum with variants corresponding to each screen.
 /// - An implementation of the `ScreenState` trait for the enum, forwarding method calls to the
 ///   active screen.
-/// 
+///
 /// To learn how to implement screen state without this macro, check out the
 /// [`ScreenState`](ratapp::ScreenState) trait documentation.
 #[proc_macro_derive(Screens)]
@@ -100,6 +100,12 @@ fn generate_screen_state_impl(
         }
     });
 
+    let match_new = variants.iter().map(|(name, ty)| {
+        quote! {
+            ScreenID::#name => #enum_name::#name(#ty::default()),
+        }
+    });
+
     let match_draw = variants.iter().map(|(name, _)| {
         quote! {
             #enum_name::#name(screen) => ScreenWithState::draw(screen, frame, state),
@@ -109,12 +115,6 @@ fn generate_screen_state_impl(
     let match_on_event = variants.iter().map(|(name, _)| {
         quote! {
             #enum_name::#name(screen) => ScreenWithState::on_event(screen, event, navigator, state).await,
-        }
-    });
-
-    let match_navigate = variants.iter().map(|(name, ty)| {
-        quote! {
-            ScreenID::#name => *self = #enum_name::#name(#ty::default()),
         }
     });
 
@@ -130,9 +130,15 @@ fn generate_screen_state_impl(
         }
     });
 
-    let match_rerender = variants.iter().map(|(name, _)| {
+    let match_on_pause = variants.iter().map(|(name, _)| {
         quote! {
-            #enum_name::#name(screen) => ScreenWithState::rerender(screen, state).await,
+            #enum_name::#name(screen) => ScreenWithState::on_pause(screen, state).await,
+        }
+    });
+
+    let match_on_resume = variants.iter().map(|(name, _)| {
+        quote! {
+            #enum_name::#name(screen) => ScreenWithState::on_resume(screen, state).await,
         }
     });
 
@@ -142,6 +148,12 @@ fn generate_screen_state_impl(
             #( #where_bounds, )*
         {
             type ID = ScreenID;
+
+            fn new(id: Self::ID) -> Self {
+                match id {
+                    #(#match_new)*
+                }
+            }
 
             fn draw(&mut self, frame: &mut ratatui::Frame, state: &S) {
                 use ratapp::ScreenWithState;
@@ -156,14 +168,6 @@ fn generate_screen_state_impl(
 
                 match self {
                     #(#match_on_event)*
-                }
-            }
-
-            fn navigate(&mut self, id: &Self::ID) {
-                use ratapp::ScreenWithState;
-
-                match *id {
-                    #(#match_navigate)*
                 }
             }
 
@@ -183,11 +187,19 @@ fn generate_screen_state_impl(
                 }
             }
 
-            async fn rerender(&mut self, state: &mut S) {
+            async fn on_pause(&mut self, state: &mut S) {
                 use ratapp::ScreenWithState;
 
                 match self {
-                    #(#match_rerender)*
+                    #(#match_on_pause)*
+                }
+            }
+
+            async fn on_resume(&mut self, state: &mut S) {
+                use ratapp::ScreenWithState;
+
+                match self {
+                    #(#match_on_resume)*
                 }
             }
         }

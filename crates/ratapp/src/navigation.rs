@@ -5,63 +5,84 @@
 //!
 //! Check out the documentation of the [`Navigator`] for more information.
 
-use std::sync::Arc;
-
-use tokio::sync::{Mutex, watch};
+use tokio::sync::mpsc;
 
 /// Allows screens to navigate between each other, request rerenders, or exit the application.
 ///
-/// It has 3 main functions:
-/// - [`goto(ScreenID)`](Navigator::goto): Switch to another screen.
-/// - [`exit()`](Navigator::exit): Exit the application.
-/// - [`rerender()`](Navigator::rerender) (deprecated): Request a rerender of the current screen.
+/// The API has a few methods to perform navigation actions:
+/// - [`Navigator::push()`]: Pushes a new screen onto the navigation stack.
+/// - [`Navigator::replace()`]: Replaces the current screen with a new one.
+/// - [`Navigator::back()`]: Pops the current screen off the navigation stack, returning to the
+///   previous screen.
+/// - [`Navigator::clear()`]: Clears the entire navigation stack, leaving only the current screen.
+/// - [`Navigator::restart()`]: Restarts the application, clearing the navigation stack and
+///   returning to the initial screen.
+/// - [`Navigator::exit()`]: Exits the application.
+/// - [`Navigator::rerender()`]: Requests a rerender of the current screen.
 ///
-/// They're all asynchronous functions, so you need to `.await` them.
-///
-/// The inner state of the navigator is an `Arc<Mutex<...>>`, so it can be cloned and shared
-/// between tasks safely.
+/// [`Navigator`]s are clonable and sendable, so you can
 #[derive(Clone)]
-pub struct Navigator<S> {
-    pub(crate) inner: Arc<Mutex<NavigatorInner<S>>>,
+pub struct Navigator<ID> {
+    pub(crate) channel: mpsc::UnboundedSender<Action<ID>>,
 }
 
-pub(crate) struct NavigatorInner<S> {
-    pub next_screen: Option<S>,
-    pub should_exit: bool,
-    pub rerenders: watch::Sender<()>,
+impl<ID> Navigator<ID> {
+    pub(crate) fn new(channel: mpsc::UnboundedSender<Action<ID>>) -> Self {
+        Navigator { channel }
+    }
+
+    pub fn push(&self, id: ID) {
+        self.channel
+            .send(Action::Push(id))
+            .expect("The Navigator actions channel was dropped! This is a ratapp bug.");
+    }
+
+    pub fn replace(&self, id: ID) {
+        self.channel
+            .send(Action::Replace(id))
+            .expect("The Navigator actions channel was dropped! This is a ratapp bug.");
+    }
+
+    pub fn back(&self) {
+        self.channel
+            .send(Action::Back)
+            .expect("The Navigator actions channel was dropped! This is a ratapp bug.");
+    }
+
+    pub fn clear(&self) {
+        self.channel
+            .send(Action::Clear)
+            .expect("The Navigator actions channel was dropped! This is a ratapp bug.");
+    }
+
+    pub fn restart(&self) {
+        self.channel
+            .send(Action::Restart)
+            .expect("The Navigator actions channel was dropped! This is a ratapp bug.");
+    }
+
+    pub fn exit(&self) {
+        self.channel
+            .send(Action::Exit)
+            .expect("The Navigator actions channel was dropped! This is a ratapp bug.");
+    }
+
+    pub fn rerender(&self) {
+        self.channel
+            .send(Action::Rerender)
+            .expect("The Navigator actions channel was dropped! This is a ratapp bug.");
+    }
 }
 
-impl<S> Navigator<S> {
-    pub(crate) fn new(rerenders: watch::Sender<()>) -> Self {
-        Navigator {
-            inner: Arc::new(Mutex::new(NavigatorInner {
-                next_screen: None,
-                should_exit: false,
-                rerenders,
-            })),
-        }
-    }
-
-    /// Navigate to another screen identified by `screen`.
-    ///
-    /// Arguments:
-    /// * `screen` - The ID of the screen to navigate to.
-    pub async fn goto(&self, screen: S) {
-        self.inner.lock().await.next_screen = Some(screen);
-    }
-
-    /// Exit the application.
-    pub async fn exit(&self) {
-        self.inner.lock().await.should_exit = true;
-    }
-
-    /// Request a rerender of the current screen.
-    #[deprecated(
-        since = "0.4.0",
-        note = "Use Screen::rerender() and ScreenWithState::rerender() instead."
-    )]
-    pub async fn rerender(&self) {
-        let inner = self.inner.lock().await;
-        let _ = inner.rerenders.send(());
-    }
+/// Actions that can be performed by the [`Navigator`].
+///
+/// These actions are sent to the main application loop to be processed.
+pub(crate) enum Action<ID> {
+    Push(ID),
+    Replace(ID),
+    Back,
+    Clear,
+    Restart,
+    Exit,
+    Rerender,
 }
